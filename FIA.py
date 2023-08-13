@@ -52,7 +52,7 @@ class FIA:
         g = torch.zeros_like(inputs)
         images = inputs.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
-        adv = images.clone().detach().to(self.device)
+        adv = images.clone().detach()
         for i in range(self.steps):
             adv.requires_grad = True
             if i == 0:
