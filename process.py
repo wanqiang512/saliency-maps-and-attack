@@ -27,4 +27,4 @@ def AdvUpdate(images, adv, pert, eps):
     delta = torch.clip(diff, -eps, eps)
     adv = torch.clip(images + delta, 0, 1)
     adv = trans(adv)
-    return adv.clone.detach()
+    return adv.clone().detach()
