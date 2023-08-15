@@ -46,7 +46,9 @@ class TAIG:
         scaled_inputs = [baseline + (float(i) / self.iters) * (images - baseline) for i in range(0, self.iters + 1)]
         scaled_inputs = torch.stack(scaled_inputs).to(self.device, dtype=torch.float32)
         if self.R:
-            scaled_inputs = scaled_inputs + torch.normal(-self.eps, self.eps, size=scaled_inputs.shape).to(self.device)
+            temp = np.random.uniform(-self.eps, self.eps, scaled_inputs.shape)
+            temp = torch.from_numpy(temp).to(self.device, dtype=torch.float32)
+            scaled_inputs = scaled_inputs + temp
         IG = []
         for _ in range(scaled_inputs.shape[1]):
             temp_label = labels[_]
