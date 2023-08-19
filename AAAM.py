@@ -50,7 +50,7 @@ class AAAM:
 
     def Loss(self, model: nn.Module, x: tensor, y: tensor, cam1: tensor, cam2: tensor) -> tensor:
         pred = model(x)
-        loss = F.nll_loss(pred, y)  # PGD loss
+        loss = F.cross_entropy(pred, y)  # PGD loss
         gamma = 1
         loss = self.LossCosine(cam1, cam2) - gamma * loss
         return loss
