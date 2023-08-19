@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import torchattacks
 from torch import tensor
 import random
 
@@ -51,7 +52,7 @@ class AAAM:
     def Loss(self, model: nn.Module, x: tensor, y: tensor, cam1: tensor, cam2: tensor) -> tensor:
         pred = model(x)
         loss = F.cross_entropy(pred, y)  # PGD loss
-        gamma = 1
+        gamma = 1000
         loss = self.LossCosine(cam1, cam2) - gamma * loss
         return loss
 
@@ -68,12 +69,14 @@ class AAAM:
         while torch.sqrt(self.criterion(images, adv)) < self.eta:
             cam1 = ...
             cam2 = ...
+            b, c, h, w = images.size()
+            N = b * c * h * w
             loss = self.Loss(model, images, labels, cam1, cam2)
             gt1 = torch.autograd.grad(loss, images, retain_graph=True)[0]
-            gt1 = images.shape[0] * gt1 / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)
+            gt1 = N * gt1 / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)
             gt1 = gt1 / 2
-            for i in range(4):
-                adv = adv / 2 ** i
+            # for i in range(4):  SI
+            #     adv = adv / 2 ** i
             adv = adv - self.alpha * gt1
             n = n + 1
             delta = torch.clip(adv - images, -self.eps, self.eps)
