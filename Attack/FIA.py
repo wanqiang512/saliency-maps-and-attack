@@ -1,15 +1,25 @@
+import os
+import random
 import torch
 import torch.nn as nn
 import numpy as np
+from torch import tensor
+from torchvision.transforms import Normalize
 
 __all__ = ['FIA']
 
-from torch import tensor
-
 
 class FIA:
-    def __init__(self, eps=8 / 255, steps=10, u=1, a=1.6 / 255, ens=30, drop_pb=0.7,
-                 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")):
+    def __init__(
+            self,
+            eps=8 / 255,
+            steps=10,
+            u=1,
+            a=1.6 / 255,
+            ens=30,
+            drop_pb=0.7,
+            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ):
         self.eps = eps
         self.device = device
         self.steps = steps
@@ -19,6 +29,19 @@ class FIA:
         self.drop_pb = drop_pb
         self.feature_map = {}
         self.weight = {}
+        self.seed_torch(1024)
+
+    def seed_torch(self, seed):
+        """Set a random seed to ensure that the results are reproducible"""
+        random.seed(seed)
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.enabled = False
 
     def get_FIA_loss(self, x, model, weight, layer):
         self.feature_map.clear()
@@ -27,6 +50,17 @@ class FIA:
         attribution = self.feature_map[layer] * weight
         loss = torch.sum(attribution) / attribution.numel()
         return loss
+
+    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
 
     def save_fmaps(self, key: str) -> None:
         def forward_hook(model: nn.Module, input: tensor, output: tensor) -> None:
@@ -40,7 +74,8 @@ class FIA:
 
         return backward_hook
 
-    def __call__(self, model: nn.Module, inputs: torch.tensor, labels: torch.tensor, layer: str):
+    def __call__(self, model: nn.Module, inputs: torch.tensor, labels: torch.tensor, layer: str, clip_min=None,
+                 clip_max=None):
         submodule_dict = dict(model.named_modules())
         try:
             submodule_dict[layer].register_backward_hook(self.save_weight(layer))
@@ -82,8 +117,15 @@ class FIA:
             adv.grad.data.zero_()
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
             adv = adv.detach_() + a * torch.sign(g)
-            diff = adv - inputs
-            delta = torch.clip(diff, -self.eps, self.eps)
-            adv = torch.clip(inputs + delta, 0, 1)
-
+            if clip_max is None and clip_min is None:
+                adv = self.TNormalize(adv, True)
+                adv = adv.clip(0, 1)
+                adv = self.TNormalize(adv, False)
+            else:
+                adv = adv.clip(clip_min, clip_max)
+            delta = torch.clip(adv - inputs, -self.eps, self.eps)
+            adv = (inputs + delta).detach_()
+            # diff = adv - inputs
+            # delta = torch.clip(diff, -self.eps, self.eps)
+            # adv = torch.clip(inputs + delta, 0, 1)
         return adv

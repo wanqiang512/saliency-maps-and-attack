@@ -9,6 +9,8 @@ import random
 
 __all__ = ['AAAM']
 
+from torchvision.transforms import Normalize
+
 
 class AAAM:
     def __init__(
@@ -23,7 +25,7 @@ class AAAM:
         self.device = device
         self.eta = eta
         self.criterion = nn.MSELoss(reduction='mean')
-        self.seed_torch(0)
+        self.seed_torch(1024)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""
@@ -36,6 +38,17 @@ class AAAM:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.enabled = False
+
+    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
 
     def LossCosine(self, I_y1: tensor, I_y2: tensor) -> tensor:
         """
@@ -70,7 +83,7 @@ class AAAM:
             cam1 = ...
             cam2 = ...
             b, c, h, w = images.size()
-            N = b * c * h * w
+            N = c * h * w  # batchsize = 1
             loss = self.Loss(model, images, labels, cam1, cam2)
             gt1 = torch.autograd.grad(loss, images, retain_graph=True)[0]
             gt1 = N * gt1 / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)

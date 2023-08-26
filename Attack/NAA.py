@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch import tensor
 from torchvision import transforms
 import torchattacks as ta
+from torchvision.transforms import Normalize
 
 
 def image_transform(x):
@@ -81,6 +82,17 @@ class NAA(nn.Module):
         x = F.conv2d(x, stack_kern, stride=1, padding=0, groups=out_channels)
         return x
 
+    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
+
     def set_DIM_ens(self,
                     image_size=224,
                     image_resize=331,
@@ -110,7 +122,7 @@ class NAA(nn.Module):
         # self.gamma = gamma,
         self.amplification_factor = amplification_factor
 
-    def forward(self, x, y):
+    def forward(self, x, y, clip_min=None, clip_max=None):
         images = x.clone().detach().to(self.device)
         labels = y.clone().detach().to(self.device)
         adv_images = x.clone().detach().to(self.device)
@@ -152,10 +164,6 @@ class NAA(nn.Module):
             grad = grad / torch.mean(torch.abs(grad), [1, 2, 3], keepdim=True)
             grad = self.momentum * grad_np + grad
             grad_np = grad.clone().detach().to(self.device)
-            feamap, _, logits = self.net(adv_images)
-            one_hot = torch.nn.functional.one_hot(labels, num_classes=len(logits[0])).to(self.device)
-            weight_np = torch.autograd.grad(outputs=torch.softmax(logits, dim=1), inputs=feamap, grad_outputs=one_hot)[
-                0]
 
             if self.usePIM:
                 self.set_PIM_ens()
@@ -174,7 +182,13 @@ class NAA(nn.Module):
 
             # torch.clip(adv_images, images - self.max_epsilon,
             #            images + self.max_epsilon)
+            if clip_max is None and clip_min is None:
+                adv_images = self.TNormalize(adv_images, True)
+                adv_images = adv_images.clip(0, 1)
+                adv_images = self.TNormalize(adv_images, False)
+            else:
+                adv_images = adv_images.clip(clip_min, clip_max)
             delta = torch.clip(adv_images - images, -self.max_epsilon, self.max_epsilon)
-            adv_images = torch.clip(images + delta, 0.0, 1.0).detach()
+            adv_images = (images + delta).detach_()
 
         return adv_images

@@ -1,18 +1,13 @@
+import os
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 import numpy as np
-import copy
 
-
-def Re_transforms(tensor, mean: list, std: list):
-    # tensor.shape:(3,w.h)
-    for idx, i in enumerate(std):
-        tensor[:, idx, :, :] *= i
-    for index, j in enumerate(mean):
-        tensor[:, index, :, :] += j
-    return tensor
+from torchvision.transforms import Normalize
 
 
 class NAA:
@@ -26,6 +21,7 @@ class NAA:
         self.ens = ens
         self.feature_map = []
         self.weight = []
+        self.seed_torch(1024)
 
     def get_NAA_loss(self, x, models, weights, base_feature):
         self.feature_map.clear()
@@ -42,6 +38,29 @@ class NAA:
             balance_attribution = positive + gamma * negative
             loss += torch.sum(balance_attribution) / balance_attribution.numel()
         return loss
+
+    def seed_torch(self, seed):
+        """Set a random seed to ensure that the results are reproducible"""
+        random.seed(seed)
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.enabled = False
+
+    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
 
     def forward_hook(self, model, input, output):
         self.feature_map.append(output)
@@ -61,7 +80,6 @@ class NAA:
 
         a = self.a
         g = torch.zeros_like(inputs)
-        # transN = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         weights = []
         images = inputs.clone().detach()
         labels = labels.clone().detach()
@@ -76,17 +94,16 @@ class NAA:
                     for l in range(self.ens):
                         self.feature_map.clear()
                         x_base = torch.zeros_like(inputs)
-                        x_base = transN(x_base)
+                        x_base = self.TNormalize(x_base, IsRe=False)
                         temp_noise = np.random.normal(size=inputs.shape, loc=0.0, scale=0.2)
                         temp_noise = torch.from_numpy(temp_noise).to(self.device, dtype=torch.float32)
                         image_tmp = torch.clip(inputs.clone() + temp_noise, -1, 1)
-                        image_tmp = inputs.clone()
                         image_tmp = (image_tmp * (1 - l / self.ens) + (l / self.ens) * x_base)
                         logits = model(image_tmp)
                         logits = nn.functional.softmax(logits, 1)
-                        labels_onehot = torch.nn.functional.one_hot(labels, num_classes=10).float()
+                        labels_onehot = torch.nn.functional.one_hot(labels, num_classes=len(logits[0])).float()
                         score = logits * labels_onehot
-                        loss = torch.sum(torch.sum(score, 1))
+                        loss = torch.sum(score)
                         loss.backward()
                     for w in self.weight:
                         temp_weight += w
@@ -98,7 +115,7 @@ class NAA:
                     weights[idx] = weight_tensor
 
             base_line = torch.zeros_like(inputs)
-            base_line = transN(base_line)
+            base_line = self.TNormalize(base_line, IsRe=False)
             self.feature_map.clear()
             base_feature = []
             for model in models:
@@ -106,23 +123,19 @@ class NAA:
             for fm in self.feature_map:
                 base_feature.append(fm)
             self.feature_map.clear()
-
             loss = self.get_NAA_loss(adv, models, weights, base_feature)
-
             loss.backward()
-
             adv_grad = adv.grad.clone()
             adv.grad.data.zero_()
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
             adv = adv + a * torch.sign(g)
-            if clip_min == None or clip_max == None:
-                adv_ = Re_transforms(adv, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                adv = torch.clip(adv_, 0, 1)
-                adv = transN(adv)
+            if clip_min is None and clip_max is None:
+                adv = self.TNormalize(adv, IsRe=True)
+                adv = torch.clip(adv, 0, 1)
+                adv = self.TNormalize(adv, IsRe=False)
             else:
                 adv = torch.clip(adv, clip_min, clip_max)
             diff = adv - inputs
             noise = torch.clip(diff, -self.esp, self.esp)
-            model.zero_grad()
-            fin_adv = noise.clone() + inputs
-        return fin_adv, noise
+            adv = (adv + noise).detach_()
+        return adv
