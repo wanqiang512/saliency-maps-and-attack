@@ -116,7 +116,7 @@ class GradCamplusplus:
             gradient = features * weight
             gradient = gradient.sum(dim=1, keepdim=True)
             gradient = F.relu(gradient)
-            # gradient = self.normalization(gradient)
+            gradient = self.normalization(gradient)
             self.gradients.append(gradient)
 
         if not target_layers == 'All':
