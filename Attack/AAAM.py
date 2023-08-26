@@ -6,10 +6,9 @@ import torch.nn as nn
 import torchattacks
 from torch import tensor
 import random
+from torchvision.transforms import Normalize
 
 __all__ = ['AAAM']
-
-from torchvision.transforms import Normalize
 
 
 class AAAM:
