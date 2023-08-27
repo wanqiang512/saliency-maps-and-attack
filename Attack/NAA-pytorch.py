@@ -53,7 +53,7 @@ class NAA:
 
     def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         if not IsRe:
-            x = Normalize(mean=mean, std=std)
+            x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
             # tensor.shape:(3,w.h)
             for idx, i in enumerate(std):
