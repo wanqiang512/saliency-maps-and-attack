@@ -63,7 +63,7 @@ class DIFGSM:
         if self.random_start:
             # Starting at a uniformly random point
             adv_images = adv_images + torch.empty_like(adv_images).uniform_(-self.eps, self.eps)
-            adv_images = torch.clamp(adv_images, min=0, max=1).detach()
+            adv_images = torch.clamp(adv_images, min=clip_min, max=clip_max).detach()
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
@@ -78,8 +78,8 @@ class DIFGSM:
             momentum = grad
 
             adv_images = adv_images.detach() + self.alpha * grad.sign()
-            adv_images = torch.clip(adv_images, clip_min, clip_max)
             delta = torch.clamp(adv_images - images, min=-self.eps, max=self.eps)
             adv_images = (images + delta).detach_()
+            adv_images = torch.clip(adv_images, clip_min, clip_max)
 
         return adv_images

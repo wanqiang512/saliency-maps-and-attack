@@ -38,9 +38,9 @@ class AAAM:
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.enabled = False
 
-    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         if not IsRe:
-            x = Normalize(mean=mean, std=std)
+            x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
             # tensor.shape:(3,w.h)
             for idx, i in enumerate(std):
@@ -72,7 +72,7 @@ class AAAM:
     def calculate_cam(self):
         pass
 
-    def __call__(self, model, images, labels, *args, **kwargs):
+    def __call__(self, model, images, labels, clip_min=None, clip_max=None):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv = images.clone().detach()
@@ -82,15 +82,21 @@ class AAAM:
             cam1 = ...
             cam2 = ...
             b, c, h, w = images.size()
-            N = c * h * w  # batchsize = 1
+            N = c * h * w  # batch-size must ==  1
             loss = self.Loss(model, images, labels, cam1, cam2)
             gt1 = torch.autograd.grad(loss, images, retain_graph=True)[0]
             gt1 = N * gt1 / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)
             gt1 = gt1 / 2
-            # for i in range(4):  SI
+            # for i in range(4):  是 SI操作吗?
             #     adv = adv / 2 ** i
             adv = adv - self.alpha * gt1
             n = n + 1
             delta = torch.clip(adv - images, -self.eps, self.eps)
-            adv = torch.clip(images + delta, 0, 1)
+            adv = (images + delta).detach_()
+            if clip_max is None and clip_min is None:
+                adv = self.TNormalize(adv, IsRe=True)
+                adv = adv.clip(0, 1)
+                adv = self.TNormalize(adv, IsRe=False)
+            else:
+                adv = adv.clip(clip_min, clip_max)
         return adv

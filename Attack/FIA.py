@@ -51,7 +51,7 @@ class FIA:
         loss = torch.sum(attribution) / attribution.numel()
         return loss
 
-    def TNormalize(self, x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         if not IsRe:
             x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
@@ -117,15 +117,12 @@ class FIA:
             adv.grad.data.zero_()
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
             adv = adv.detach_() + a * torch.sign(g)
+            delta = torch.clip(adv - inputs, -self.eps, self.eps)
+            adv = (inputs + delta).detach_()
             if clip_max is None and clip_min is None:
                 adv = self.TNormalize(adv, True)
                 adv = adv.clip(0, 1)
                 adv = self.TNormalize(adv, False)
             else:
                 adv = adv.clip(clip_min, clip_max)
-            delta = torch.clip(adv - inputs, -self.eps, self.eps)
-            adv = (inputs + delta).detach_()
-            # diff = adv - inputs
-            # delta = torch.clip(diff, -self.eps, self.eps)
-            # adv = torch.clip(inputs + delta, 0, 1)
         return adv

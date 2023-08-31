@@ -52,14 +52,14 @@ class MIFGSM:
             momentum = grad
 
             adv_images = adv_images.detach() + self.alpha * grad.sign()
-            if clip_max is None and clip_min is None:
-                adv = self.TNormalize(adv, IsRe=True)
-                adv = adv.clip(0, 1)
-                adv = self.TNormalize(adv, IsRe=False)
-            else:
-                adv = torch.clamp(adv, clip_min, clip_max)
             delta = torch.clamp(adv_images - images,
                                 min=-self.eps, max=self.eps)
             adv_images = (images + delta).detach_()
+            if clip_max is None and clip_min is None:
+                adv_images = self.TNormalize(adv_images, IsRe=True)
+                adv_images = adv_images.clip(0, 1)
+                adv_images = self.TNormalize(adv_images, IsRe=False)
+            else:
+                adv_images = torch.clamp(adv_images, clip_min, clip_max)
 
         return adv_images

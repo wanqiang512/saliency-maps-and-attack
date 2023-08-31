@@ -182,13 +182,13 @@ class NAA(nn.Module):
 
             # torch.clip(adv_images, images - self.max_epsilon,
             #            images + self.max_epsilon)
+            delta = torch.clip(adv_images - images, -self.max_epsilon, self.max_epsilon)
+            adv_images = (images + delta).detach_()
             if clip_max is None and clip_min is None:
                 adv_images = self.TNormalize(adv_images, True)
                 adv_images = adv_images.clip(0, 1)
                 adv_images = self.TNormalize(adv_images, False)
             else:
                 adv_images = adv_images.clip(clip_min, clip_max)
-            delta = torch.clip(adv_images - images, -self.max_epsilon, self.max_epsilon)
-            adv_images = (images + delta).detach_()
 
         return adv_images

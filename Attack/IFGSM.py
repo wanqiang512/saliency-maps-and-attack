@@ -23,7 +23,7 @@ class IFGSM:
                 x[:, index, :, :] += j
         return x
 
-    def attack(self, model, images, labels, clip_min=-1, clip_max=1):
+    def attack(self, model, images, labels, clip_min=None, clip_max=None):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv = images.clone().detach()
@@ -36,15 +36,14 @@ class IFGSM:
             loss = ce_loss(logits, labels)
             loss.backward()
             adv = adv + alpha * torch.sign(adv.grad)
-            adv.grad.data.zero_()
             model.zero_grad()
+            diff = adv - images
+            delta = torch.clamp(diff, -self.eps, self.eps)
+            adv = (delta + images).detach_()
             if clip_max is None and clip_min is None:
                 adv = self.TNormalize(adv, IsRe=True)
                 adv = adv.clip(0, 1)
                 adv = self.TNormalize(adv, IsRe=False)
             else:
-                adv = torch.clamp(adv, clip_min, clip_max)
-            diff = adv - images
-            delta = torch.clamp(diff, -self.eps, self.eps)
-            adv = (delta + images).detach_()
+                adv = adv.clip(clip_min, clip_max)
         return adv
