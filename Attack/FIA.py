@@ -46,7 +46,7 @@ class FIA:
     def get_FIA_loss(self, x, model, weight, layer):
         self.feature_map.clear()
         loss = 0
-        logits = model(x)
+        logits = model(self.TNormalize(x))
         attribution = self.feature_map[layer] * weight
         loss = torch.sum(attribution) / attribution.numel()
         return loss
@@ -74,8 +74,12 @@ class FIA:
 
         return backward_hook
 
-    def __call__(self, model: nn.Module, inputs: torch.tensor, labels: torch.tensor, layer: str, clip_min=None,
-                 clip_max=None):
+    def __call__(self, model: nn.Module, inputs: torch.tensor, labels: torch.tensor, layer: str):
+        if torch.max(inputs) > 1 or torch.min(inputs) < 0:
+            raise ValueError('Input must have a range [0, 1] (max: {}, min: {})'.format(
+                torch.max(inputs), torch.min(inputs))
+            )
+
         submodule_dict = dict(model.named_modules())
         try:
             submodule_dict[layer].register_backward_hook(self.save_weight(layer))
@@ -98,7 +102,7 @@ class FIA:
                     mask = np.random.binomial(1, self.drop_pb, size=adv.shape)
                     mask = torch.from_numpy(mask).to(self.device)
                     image_tmp = images.clone() * mask
-                    logits = model(image_tmp)
+                    logits = model(self.TNormalize(image_tmp))
                     logits = nn.functional.softmax(logits, 1)
                     labels_onehot = torch.nn.functional.one_hot(labels, len(logits[0])).float()
                     score = logits * labels_onehot
@@ -118,11 +122,5 @@ class FIA:
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
             adv = adv.detach_() + a * torch.sign(g)
             delta = torch.clip(adv - inputs, -self.eps, self.eps)
-            adv = (inputs + delta).detach_()
-            if clip_max is None and clip_min is None:
-                adv = self.TNormalize(adv, True)
-                adv = adv.clip(0, 1)
-                adv = self.TNormalize(adv, False)
-            else:
-                adv = adv.clip(clip_min, clip_max)
+            adv = torch.clip(inputs + delta, 0, 1).detach_()
         return adv
