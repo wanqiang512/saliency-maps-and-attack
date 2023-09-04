@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 __all__ = ['TAIG']
 
-
+# model must be nn.Sequential {Normalized(mean,std), model}
 class TAIG:
     def __init__(
             self,
