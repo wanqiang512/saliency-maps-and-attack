@@ -38,7 +38,7 @@ def load_model(model_name):
         print('Not supported model')
 
 
-def TNormalize(x, IsRe, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
     if not IsRe:
         x = Normalize(mean=mean, std=std)(x)
     elif IsRe:
@@ -79,7 +79,7 @@ def run_attack(
                 transforms.ToTensor(),
                 transforms.Resize(299),
                 transforms.CenterCrop(299),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                 # mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
             ]
         )
@@ -89,7 +89,7 @@ def run_attack(
                 transforms.ToTensor(),
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                 # mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
             ]
         )
@@ -115,26 +115,25 @@ def run_attack(
     for batch, (images, labels) in enumerate(tqdm(val_loader)):
         images = images.to(device)
         labels = labels.to(device)
-        if method == "test":
-            from FIA import FIA
-            attack = FIA()
-            adv = attack(model, images, labels, "features.10", clip_min=-1, clip_max=1)
-        output = model(adv).max(dim=1)[1]
+        if method == "RPA":
+            from Attack.RPA import RPA
+            attack = RPA()
+            adv = attack(model, images, labels, "features.10")
+        output = model(TNormalize(adv)).max(dim=1)[1]
         success_rate[model_name] += (output != labels).sum().item()
 
         for transfer_model_name, transfer_model in zip(transfer_model_names, transfer_models):
-            output = transfer_model(adv).max(dim=1)[1]
+            output = transfer_model(TNormalize(adv)).max(dim=1)[1]
             success_rate[transfer_model_name] += (output != labels).sum().item()
 
         # save adv image ?
         if save_img:
             filename = [str(batch * len(labels) + _) + ".jpg" for _ in range(len(images))]
-            img = TNormalize(adv, IsRe=True, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-            save_image(images=img, filenames=filename, output_dir="./adv_img")
+            save_image(images=adv, filenames=filename, output_dir="./adv_img")
 
     for model_name_ in success_rate.keys():
         print('Model: %s attack Success Rate:%f' % (model_name_, success_rate[model_name_] / len(val_dataset)))
 
 
 if __name__ == '__main__':
-    run_attack(method="test", use_Inc_model=False, save_img=True)
+    run_attack(method="RPA", use_Inc_model=False, save_img=False)
