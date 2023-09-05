@@ -23,7 +23,7 @@ class IFGSM:
                 x[:, index, :, :] += j
         return x
 
-    def attack(self, model, images, labels, clip_min=None, clip_max=None):
+    def attack(self, model, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv = images.clone().detach()
@@ -31,7 +31,7 @@ class IFGSM:
 
         for i in range(self.steps):
             adv.requires_grad = True
-            logits = model(adv)
+            logits = model(self.TNormalize(adv))
             ce_loss = nn.CrossEntropyLoss()  # loss = F.nll_loss(logits, labels)
             loss = ce_loss(logits, labels)
             loss.backward()
@@ -39,11 +39,5 @@ class IFGSM:
             model.zero_grad()
             diff = adv - images
             delta = torch.clamp(diff, -self.eps, self.eps)
-            adv = (delta + images).detach_()
-            if clip_max is None and clip_min is None:
-                adv = self.TNormalize(adv, IsRe=True)
-                adv = adv.clip(0, 1)
-                adv = self.TNormalize(adv, IsRe=False)
-            else:
-                adv = adv.clip(clip_min, clip_max)
+            adv = torch.clip(delta + images, 0, 1).detach_()
         return adv

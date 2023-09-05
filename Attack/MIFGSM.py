@@ -31,7 +31,7 @@ class MIFGSM:
                 x[:, index, :, :] += j
         return x
 
-    def forward(self, images, labels, clip_min=None, clip_max=None):
+    def forward(self, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv_images = images.clone().detach()
@@ -40,7 +40,7 @@ class MIFGSM:
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs = self.model(adv_images)
+            outputs = self.model(self.TNormalize(adv_images))
             cost = loss(outputs, labels)
             # Update adversarial images
             grad = torch.autograd.grad(cost, adv_images,
@@ -54,12 +54,6 @@ class MIFGSM:
             adv_images = adv_images.detach() + self.alpha * grad.sign()
             delta = torch.clamp(adv_images - images,
                                 min=-self.eps, max=self.eps)
-            adv_images = (images + delta).detach_()
-            if clip_max is None and clip_min is None:
-                adv_images = self.TNormalize(adv_images, IsRe=True)
-                adv_images = adv_images.clip(0, 1)
-                adv_images = self.TNormalize(adv_images, IsRe=False)
-            else:
-                adv_images = torch.clamp(adv_images, clip_min, clip_max)
+            adv_images = torch.clip(images + delta, 0, 1).detach_()
 
         return adv_images

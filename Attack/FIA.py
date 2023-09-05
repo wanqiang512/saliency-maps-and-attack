@@ -12,7 +12,7 @@ __all__ = ['FIA']
 class FIA:
     def __init__(
             self,
-            eps=8 / 255,
+            eps=16 / 255,
             steps=10,
             u=1,
             a=1.6 / 255,

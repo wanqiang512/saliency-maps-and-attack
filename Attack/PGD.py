@@ -35,7 +35,7 @@ class PGD(object):
                 x[:, index, :, :] += j
         return x
 
-    def forward(self, images, labels, clip_min=None, clip_max=None):
+    def forward(self, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         loss = nn.CrossEntropyLoss()
@@ -45,26 +45,18 @@ class PGD(object):
             # Starting at a uniformly random point
             adv_images = adv_images + \
                          torch.empty_like(adv_images).uniform_(-self.eps, self.eps)
-            # adv_images = self.TNormalize(adv_images, IsRe=True)
-            adv_images = torch.clamp(adv_images, min=clip_min, max=clip_max).detach()
-            # adv_images = self.TNormalize(adv_images)
+            adv_images = torch.clamp(adv_images, min=0, max=1).detach()
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs = self.model(adv_images)
+            outputs = self.model(self.TNormalize(adv_images))
             cost = loss(outputs, labels)
             # Update adversarial images
             grad = torch.autograd.grad(cost, adv_images,
                                        retain_graph=False, create_graph=False)[0]
             adv_images = adv_images.detach() + self.alpha * grad.sign()
-            delta = torch.clamp(adv_images - images,
+            delta = torch.clip(adv_images - images,
                                 min=-self.eps, max=self.eps)
-            adv_images = (images + delta).detach_()
-            if clip_min is None and clip_max is None:
-                adv_images = self.TNormalize(adv_images, IsRe=True)
-                adv_images.clip(0, 1)
-                adv_images = self.TNormalize(adv_images, IsRe=False)
-            else:
-                adv_images.clip(clip_min, clip_max)
+            adv_images = torch.clip(images + delta, 0, 1).detach_()
 
         return adv_images

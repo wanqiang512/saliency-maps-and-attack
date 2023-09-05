@@ -9,7 +9,7 @@ from torchvision.transforms import Normalize
 
 
 class NAA:
-    def __init__(self, esp=8 / 255, steps=10, u=1, a=1.6 / 255, ens=30,
+    def __init__(self, esp=16 / 255, steps=10, u=1, a=1.6 / 255, ens=30,
                  device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")):
         self.esp = esp
         self.device = device
