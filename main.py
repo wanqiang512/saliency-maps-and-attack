@@ -9,13 +9,14 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import argparse
 from torchvision.models import (
-    resnet50, densenet121, vgg19_bn, inception_v3, squeezenet1_0, alexnet,
-    ResNet50_Weights, DenseNet121_Weights, VGG19_BN_Weights, Inception_V3_Weights, SqueezeNet1_0_Weights,
-    AlexNet_Weights
+    resnet50, densenet121, vgg19_bn, inception_v3, squeezenet1_1, alexnet,
+    ResNet50_Weights, DenseNet121_Weights, VGG19_BN_Weights, Inception_V3_Weights, SqueezeNet1_1_Weights,
+    AlexNet_Weights,
 )
 
 parser = argparse.ArgumentParser(description="Test.py")
-parser.add_argument('--root', type=str, default='./val5000', help='Input images.')
+parser.add_argument('--root', type=str, default=r'D:\code\CAM-attack\dataset\ImageNetval_5000\val5000',
+                    help='Input images.')
 parser.add_argument('--save_adv', type=str, default='adv_img/', help='Output directory with adv images.')
 parser.add_argument('--modeltype', type=str, default='VGG19', help='Substitution model.')
 opt = parser.parse_args()
@@ -30,8 +31,8 @@ def load_model(model_name):
         return vgg19_bn(weights=VGG19_BN_Weights.DEFAULT)
     elif model_name == 'Inc-v3':
         return inception_v3(weights=Inception_V3_Weights.DEFAULT)
-    elif model_name == 'Squeezenet1_0':
-        return squeezenet1_0(weights=SqueezeNet1_0_Weights.DEFAULT)
+    elif model_name == 'Squeezenet1_1':
+        return squeezenet1_1(weights=SqueezeNet1_1_Weights.DEFAULT)
     elif model_name == 'Alexnet':
         return alexnet(weights=AlexNet_Weights.DEFAULT)
     else:
@@ -99,7 +100,7 @@ def run_attack(
     model_name = opt.modeltype
 
     print('Loaded transfer models...')
-    all_model_names = ['ResNet50', 'DenseNet121', 'Inc-v3', 'VGG19', 'Squeezenet1_0', 'Alexnet']
+    all_model_names = ['ResNet50', 'DenseNet121', 'Inc-v3', 'VGG19', 'Squeezenet1_1', 'Alexnet']
     transfer_model_names = [x for x in all_model_names if x != opt.modeltype]
     transfer_models = [load_model(x) for x in transfer_model_names]
     for model_ in transfer_models:
@@ -110,15 +111,17 @@ def run_attack(
         success_rate[name] = 0
     print('Loaded dataset...')
     val_dataset = ImageFolder(root=opt.root, transform=transform)  # root = "mini-imagenet or other"
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0)
     print('Image Loaded...')
     for batch, (images, labels) in enumerate(tqdm(val_loader)):
+
         images = images.to(device)
         labels = labels.to(device)
-        if method == "RPA":
-            from Attack.RPA import RPA
-            attack = RPA()
+        if method == "test":
+            from Attack.FIA import FIA
+            attack = FIA()
             adv = attack(model, images, labels, "features.10")
+
         output = model(TNormalize(adv)).max(dim=1)[1]
         success_rate[model_name] += (output != labels).sum().item()
 
@@ -136,4 +139,4 @@ def run_attack(
 
 
 if __name__ == '__main__':
-    run_attack(method="RPA", use_Inc_model=False, save_img=False)
+    run_attack(method="test", use_Inc_model=False, save_img=True)
