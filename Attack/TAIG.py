@@ -3,7 +3,9 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
+
 __all__ = ['TAIG']
+
 
 # model must be nn.Sequential {Normalized(mean,std), model}
 class TAIG:
@@ -56,7 +58,7 @@ class TAIG:
             logits = model(temp_image)
             logits = nn.functional.softmax(logits, dim=1)
             score = logits[:, temp_label]
-            loss = -torch.mean(score)
+            loss = torch.mean(score)
             model.zero_grad()
             loss.backward()
             grad = temp_image.grad.data
@@ -73,9 +75,9 @@ class TAIG:
         for i in range(self.ens):
             ig = self.compute_ig(model, images, labels)
 
-            adv = adv.detach() + self.alpha * torch.sign(ig)
+            adv = adv.detach() - self.alpha * torch.sign(ig)
             adv = torch.where(adv > images + self.eps, images + self.eps, adv)
-            adv = torch.where(adv < images - self.eps, images - self.eps, adv)
+            adv = torch.where(adv < images - self.eps, images + self.eps, adv)
             adv = torch.clip(adv, 0, 1)
 
         return adv
