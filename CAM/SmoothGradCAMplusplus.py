@@ -2,7 +2,19 @@ import torch
 import torch.nn.functional as F
 from statistics import mode, mean
 
+from torchvision.transforms import Normalize
 
+
+def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    if not IsRe:
+        x = Normalize(mean=mean, std=std)(x)
+    elif IsRe:
+        # tensor.shape:(3,w.h)
+        for idx, i in enumerate(std):
+            x[:, idx, :, :] *= i
+        for index, j in enumerate(mean):
+            x[:, index, :, :] += j
+    return x
 class SaveValues():
     def __init__(self, m):
         # register a hook to save values of activations and gradients
@@ -47,7 +59,7 @@ class CAM(object):
         """
 
         # object classification
-        score = self.model(x)
+        score = self.model(TNormalize(x))
 
         prob = F.softmax(score, dim=1)
 
@@ -106,6 +118,7 @@ class SmoothGradCAMpp(CAM):
         self.n_samples = n_samples
         self.stdev_spread = stdev_spread
 
+
     def forward(self, x, idx=None):
         """
         Args:
@@ -126,7 +139,7 @@ class SmoothGradCAMpp(CAM):
             x_with_noise = torch.normal(mean=x, std=std_tensor)
             x_with_noise.requires_grad_()
 
-            score = self.model(x_with_noise)
+            score = self.model(TNormalize(x_with_noise))
 
             prob = F.softmax(score, dim=1)
 
