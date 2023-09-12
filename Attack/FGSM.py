@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torchvision.transforms import Normalize
+
 
 class FGSM:
     r"""
@@ -10,12 +12,23 @@ class FGSM:
         self.model = model
         self.device = device
 
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
+
     def forward(self, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         loss = nn.CrossEntropyLoss()
         images.requires_grad = True
-        outputs = self.model(images)
+        outputs = self.model(self.TNormalize(images))
         cost = loss(outputs, labels)
         # Update adversarial images
         grad = torch.autograd.grad(cost, images,
