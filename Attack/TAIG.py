@@ -6,6 +6,8 @@ import torch.nn as nn
 
 __all__ = ['TAIG']
 
+from torchvision.transforms import Normalize
+
 
 # model must be nn.Sequential {Normalized(mean,std), model}
 class TAIG:
@@ -42,6 +44,17 @@ class TAIG:
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.enabled = False
 
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
+
     def compute_ig(self, model, images, labels):
         baseline = torch.zeros_like(images)
         scaled_inputs = [baseline + (float(i) / self.iters) * (images - baseline) for i in range(0, self.iters + 1)]
@@ -55,7 +68,7 @@ class TAIG:
             temp_label = labels[_]
             temp_image = scaled_inputs[:, _, :, :, :].clone().detach()
             temp_image.requires_grad = True
-            logits = model(temp_image)
+            logits = model(self.TNormalize(temp_image))
             logits = nn.functional.softmax(logits, dim=1)
             score = logits[:, temp_label]
             loss = torch.mean(score)
@@ -74,7 +87,6 @@ class TAIG:
 
         for i in range(self.ens):
             ig = self.compute_ig(model, images, labels)
-
             adv = adv.detach() - self.alpha * torch.sign(ig)
             adv = torch.where(adv > images + self.eps, images + self.eps, adv)
             adv = torch.where(adv < images - self.eps, images + self.eps, adv)
