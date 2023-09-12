@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from scipy import stats as st
+from torchvision.transforms import Normalize
 
-#TIDIM
+
+# TIDIM
 class TIFGSM:
     r"""
     TIFGSM in the paper 'Evading Defenses to Transferable Adversarial Examples by Translation-Invariant Attacks'
@@ -48,6 +50,18 @@ class TIFGSM:
         self.nsig = nsig
         self.stacked_kernel = torch.from_numpy(self.kernel_generation())
         self.model = model
+        self.device = device
+
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
 
     def forward(self, images, labels):
         r"""
@@ -68,7 +82,7 @@ class TIFGSM:
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs = self.model(self.input_diversity(adv_images))
+            outputs = self.model(self.TNormalize(self.input_diversity(adv_images)))
 
             cost = loss(outputs, labels)
             # Update adversarial images
