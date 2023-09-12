@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
 
 
 class DIFGSM:
@@ -32,6 +33,17 @@ class DIFGSM:
         self.model = model
         self.device = device
 
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
+
     def input_diversity(self, x):
         img_size = x.shape[-1]
         img_resize = int(img_size * self.resize_rate)
@@ -53,7 +65,7 @@ class DIFGSM:
 
         return padded if torch.rand(1) < self.diversity_prob else x
 
-    def forward(self, images, labels, clip_min=None, clip_max=None):
+    def forward(self, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv_images = images.clone().detach()
@@ -63,11 +75,11 @@ class DIFGSM:
         if self.random_start:
             # Starting at a uniformly random point
             adv_images = adv_images + torch.empty_like(adv_images).uniform_(-self.eps, self.eps)
-            adv_images = torch.clamp(adv_images, min=clip_min, max=clip_max).detach()
+            adv_images = torch.clamp(adv_images, min=0, max=1).detach()
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs = self.model(adv_images)
+            outputs = self.model(self.TNormalize(adv_images))
             cost = loss(outputs, labels)
             # Update adversarial images
             grad = torch.autograd.grad(cost, adv_images,
@@ -79,7 +91,6 @@ class DIFGSM:
 
             adv_images = adv_images.detach() + self.alpha * grad.sign()
             delta = torch.clamp(adv_images - images, min=-self.eps, max=self.eps)
-            adv_images = (images + delta).detach_()
-            adv_images = torch.clip(adv_images, clip_min, clip_max)
+            adv_images = torch.clip(images + delta, 0, 1).detach_()
 
         return adv_images
