@@ -2,6 +2,7 @@ from typing import Iterable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
 
 
 class GradCamplusplus:
@@ -9,6 +10,17 @@ class GradCamplusplus:
         super(GradCamplusplus, self).__init__()
         self.model = model
         self.model.eval()  # model have to get .eval() for evaluation.
+
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
 
     def normalization(self, x):
         x -= x.min()
@@ -81,7 +93,7 @@ class GradCamplusplus:
                     self.handlers.append(module.register_forward_hook(self.forward_hook(name, input_hook)))
                     self.handlers.append(module.register_backward_hook(self.backward_hook(name, input_hook)))
 
-        output = self.model(input_TensorImage)
+        output = self.model(self.TNormalize(input_TensorImage))
 
         if target_label is None:
             target_tensor = torch.zeros_like(output)
