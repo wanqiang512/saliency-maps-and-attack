@@ -9,46 +9,40 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import argparse
 from torchvision.models import (
-    resnet50, densenet121, vgg19_bn, inception_v3, squeezenet1_1, alexnet,
-    ResNet50_Weights, DenseNet121_Weights, VGG19_BN_Weights, Inception_V3_Weights, SqueezeNet1_1_Weights,
-    AlexNet_Weights,
+    resnet18, resnet50, vgg19, inception_v3, alexnet, densenet121, swin_t, swin_b, swin_s,
+    ResNet18_Weights, ResNet50_Weights, Inception_V3_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
+    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights
 )
 
 parser = argparse.ArgumentParser(description="Test.py")
 parser.add_argument('--root', type=str, default=r'D:\code\CAM-attack\dataset\ImageNetval_5000\val5000',
                     help='Input images.')
 parser.add_argument('--save_adv', type=str, default='adv_img/', help='Output directory with adv images.')
-parser.add_argument('--modeltype', type=str, default='VGG19', help='Substitution model.')
+parser.add_argument('--modeltype', type=str, default='resnet18', help='Substitution model.')
 opt = parser.parse_args()
 
 
 def load_model(model_name):
-    if model_name == 'ResNet50':
+    if model_name == 'resnet18':
+        return resnet18(weights=ResNet18_Weights.DEFAULT)
+    if model_name == 'resnet50':
         return resnet50(weights=ResNet50_Weights.DEFAULT)
-    elif model_name == 'DenseNet121':
+    elif model_name == 'densenet121':
         return densenet121(weights=DenseNet121_Weights.DEFAULT)
-    elif model_name == 'VGG19':
-        return vgg19_bn(weights=VGG19_BN_Weights.DEFAULT)
+    elif model_name == 'vgg19':
+        return vgg19(weights=VGG19_Weights.DEFAULT)
     elif model_name == 'Inc-v3':
         return inception_v3(weights=Inception_V3_Weights.DEFAULT)
-    elif model_name == 'Squeezenet1_1':
-        return squeezenet1_1(weights=SqueezeNet1_1_Weights.DEFAULT)
-    elif model_name == 'Alexnet':
+    elif model_name == 'alexnet':
         return alexnet(weights=AlexNet_Weights.DEFAULT)
+    elif model_name == 'swin_t':
+        return swin_t(weights=Swin_T_Weights.DEFAULT)
+    elif model_name == 'swin_b':
+        return swin_b(weights=Swin_B_Weights.DEFAULT)
+    elif model_name == 'swin_s':
+        return swin_s(weights=Swin_S_Weights.DEFAULT)
     else:
         print('Not supported model')
-
-
-def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-    if not IsRe:
-        x = Normalize(mean=mean, std=std)(x)
-    elif IsRe:
-        # tensor.shape:(3,w.h)
-        for idx, i in enumerate(std):
-            x[:, idx, :, :] *= i
-        for index, j in enumerate(mean):
-            x[:, index, :, :] += j
-    return x
 
 
 def mkdir(path):
@@ -96,37 +90,44 @@ def run_attack(
         )
     print('Loaded source model...')
     model = load_model(opt.modeltype)
-    model.eval().to(device)
+    model = torch.nn.Sequential(
+        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        model.eval().to(device)
+    )
+
     model_name = opt.modeltype
 
     print('Loaded transfer models...')
-    all_model_names = ['ResNet50', 'DenseNet121', 'Inc-v3', 'VGG19', 'Squeezenet1_1', 'Alexnet']
+    all_model_names = ['resnet18', 'resnet50', 'densenet121', 'vgg19', 'Inc-v3', 'alexnet']
     transfer_model_names = [x for x in all_model_names if x != opt.modeltype]
     transfer_models = [load_model(x) for x in transfer_model_names]
     for model_ in transfer_models:
-        model_.eval().to(device)
+        model_ = torch.nn.Sequential(
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            model_.eval().to(device)
+        )
 
     success_rate = dict()  # 攻击成功率
     for name in all_model_names:
         success_rate[name] = 0
     print('Loaded dataset...')
     val_dataset = ImageFolder(root=opt.root, transform=transform)  # root = "mini-imagenet or other"
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=10, shuffle=False, num_workers=0)
     print('Image Loaded...')
     for batch, (images, labels) in enumerate(tqdm(val_loader)):
-
         images = images.to(device)
         labels = labels.to(device)
-        if method == "test":
-            from Attack.FIA import FIA
-            attack = FIA()
-            adv = attack(model, images, labels, "features.10")
 
-        output = model(TNormalize(adv)).max(dim=1)[1]
+        if method == "test":
+            from Attack.IDG import TAIDG
+            attack = TAIDG()
+            adv = attack(model, images, labels)
+
+        output = model(adv).max(dim=1)[1]
         success_rate[model_name] += (output != labels).sum().item()
 
         for transfer_model_name, transfer_model in zip(transfer_model_names, transfer_models):
-            output = transfer_model(TNormalize(adv)).max(dim=1)[1]
+            output = transfer_model(adv).max(dim=1)[1]
             success_rate[transfer_model_name] += (output != labels).sum().item()
 
         # save adv image ?
