@@ -15,7 +15,7 @@ class AAAM:
     def __init__(
             self,
             eps: float = 16 / 255,
-            eta: float = 0.1,
+            eta: float = 7,
             alpha: float = 1.6 / 255,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ):
@@ -49,54 +49,63 @@ class AAAM:
                 x[:, index, :, :] += j
         return x
 
-    def LossCosine(self, I_y1: tensor, I_y2: tensor) -> tensor:
+    def LossCosine(self, model, images, frist, second) -> tensor:
         """
         args:
-        I_y1: 第一正确标签图像的SGLRP hot_map
-        I_y2: 第二正确标签图像的SGLRP hot_map
+        I_y1: cam1 x, ytrue
+        I_y2: cam2 x, ysec
         """
-        temp = torch.dot(I_y1, I_y2)
-        norm = torch.norm(I_y1) * torch.norm(I_y2)
-        L_cosine = temp / norm
-        L = -  torch.log((1 - L_cosine) / 2)
+        cam1, cam2 = self.calculate_cam(model, images, frist, second)  # 不处理batchsize
+        temp = cam1 * cam2
+        norm = torch.norm(cam1) * torch.norm(cam2)
+        L_cosine = torch.norm(temp / norm, p=1)
+        L = -  torch.log((1 - L_cosine) / 2)  # normalize
         return L
 
-    def Loss(self, model: nn.Module, x: tensor, y: tensor, cam1: tensor, cam2: tensor) -> tensor:
-        pred = model(x)
+    def Loss(self, model: nn.Module, x: tensor, y: tensor, frist, second) -> tensor:
+        pred = model(self.TNormalize(x))
         loss = F.cross_entropy(pred, y)  # PGD loss
         gamma = 1000
-        loss = self.LossCosine(cam1, cam2) - gamma * loss
+        loss = self.LossCosine(model, x, frist, second) - gamma * loss
         return loss
 
-    @staticmethod
-    def calculate_cam(self):
-        pass
+    def calculate_cam(self, model, images, frist, second):
+        from CAM.GradCAMplusplus import GradCamplusplus
+        cam = GradCamplusplus(model)
+        cam1 = cam.get_gradient(images, "layer4", frist)[0]
+        cam2 = cam.get_gradient(images, "layer4", second)[0]
+        # cam1 = F.interpolate(cam1,size=(images.shape[2], images.shape[3]),mode='bilinear', align_corners=False)
+        # cam2 = F.interpolate(cam1,size=(images.shape[2], images.shape[3]),mode='bilinear', align_corners=False)
+        return cam1, cam2
 
     def __call__(self, model, images, labels, clip_min=None, clip_max=None):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv = images.clone().detach()
         n = 0
+        b, c, h, w = images.size()
+        if b != 1:
+            assert "batchsize must be == 1!"
 
-        while torch.sqrt(self.criterion(images, adv)) < self.eta:
-            cam1 = ...
-            cam2 = ...
-            b, c, h, w = images.size()
-            N = c * h * w  # batch-size must ==  1
-            loss = self.Loss(model, images, labels, cam1, cam2)
-            gt1 = torch.autograd.grad(loss, images, retain_graph=True)[0]
-            gt1 = N * gt1 / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)
+        first = labels
+        logits = model(self.TNormalize(images))
+        temp = logits.argmax(dim=1)
+        logits[:, temp] = float("-inf")
+        second = logits.argmax(dim=1)
+        rmse = float("-inf")
+        # 对于cam eta取多少合适？
+        while rmse < self.eta:
+            adv.requires_grad = True
+            N = c * h * w
+            loss = self.Loss(model, adv, labels, first, second)
+            gt1 = torch.autograd.grad(loss, adv, retain_graph=False)[0]
+            gt1 = (N * gt1) / torch.norm(gt1, p=1) + gt1 / torch.norm(gt1, p=2)
             gt1 = gt1 / 2
-            # for i in range(4):  是 SI操作吗?
-            #     adv = adv / 2 ** i
-            adv = adv - self.alpha * gt1
+            # for i in range(4): SI 操作
+            #     adv = adv / 2**i
             n = n + 1
+            adv = adv - self.alpha * gt1
             delta = torch.clip(adv - images, -self.eps, self.eps)
-            adv = (images + delta).detach_()
-            if clip_max is None and clip_min is None:
-                adv = self.TNormalize(adv, IsRe=True)
-                adv = adv.clip(0, 1)
-                adv = self.TNormalize(adv, IsRe=False)
-            else:
-                adv = adv.clip(clip_min, clip_max)
+            adv = torch.clip(images + delta, 0, 1).detach_()
+            rmse = torch.sqrt(self.criterion(images, adv))
         return adv
