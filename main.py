@@ -1,6 +1,5 @@
 import os
 import torch
-import torchvision
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import Normalize
@@ -8,12 +7,14 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import argparse
+import torch.nn as nn
 from torchvision.models import (
-    resnet18, resnet50, vgg19, inception_v3, alexnet, densenet121, swin_t, swin_b, swin_s,
-    ResNet18_Weights, ResNet50_Weights, Inception_V3_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
-    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights
+    resnet18, vgg19, alexnet, densenet121, swin_t, swin_b, swin_s, inception_v3, googlenet,
+    ResNet18_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
+    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights, Inception_V3_Weights, GoogLeNet_Weights
 )
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 parser = argparse.ArgumentParser(description="Test.py")
 parser.add_argument('--root', type=str, default=r'D:\code\CAM-attack\dataset\ImageNetval_5000\val5000',
                     help='Input images.')
@@ -22,38 +23,52 @@ parser.add_argument('--modeltype', type=str, default='resnet18', help='Substitut
 opt = parser.parse_args()
 
 
+def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    if not IsRe:
+        x = Normalize(mean=mean, std=std)(x)
+    elif IsRe:
+        # tensor.shape:(3,w.h)
+        for idx, i in enumerate(std):
+            x[:, idx, :, :] *= i
+        for index, j in enumerate(mean):
+            x[:, index, :, :] += j
+    return x
+
+
 def load_model(model_name):
     if model_name == 'resnet18':
-        return resnet18(weights=ResNet18_Weights.DEFAULT)
-    if model_name == 'resnet50':
-        return resnet50(weights=ResNet50_Weights.DEFAULT)
+        net = resnet18(weights=ResNet18_Weights.DEFAULT)
     elif model_name == 'densenet121':
-        return densenet121(weights=DenseNet121_Weights.DEFAULT)
+        net = densenet121(weights=DenseNet121_Weights.DEFAULT)
     elif model_name == 'vgg19':
-        return vgg19(weights=VGG19_Weights.DEFAULT)
-    elif model_name == 'Inc-v3':
-        return inception_v3(weights=Inception_V3_Weights.DEFAULT)
+        net = vgg19(weights=VGG19_Weights.DEFAULT)
+    elif model_name == 'inception_v3':
+        net = inception_v3(weights=Inception_V3_Weights.DEFAULT)
+    elif model_name == 'googlet':
+        net = googlenet(weights=GoogLeNet_Weights.DEFAULT)
     elif model_name == 'alexnet':
-        return alexnet(weights=AlexNet_Weights.DEFAULT)
+        net = alexnet(weights=AlexNet_Weights.DEFAULT)
     elif model_name == 'swin_t':
-        return swin_t(weights=Swin_T_Weights.DEFAULT)
+        net = swin_t(weights=Swin_T_Weights.DEFAULT)
     elif model_name == 'swin_b':
-        return swin_b(weights=Swin_B_Weights.DEFAULT)
+        net = swin_b(weights=Swin_B_Weights.DEFAULT)
     elif model_name == 'swin_s':
-        return swin_s(weights=Swin_S_Weights.DEFAULT)
+        net = swin_s(weights=Swin_S_Weights.DEFAULT)
     else:
         print('Not supported model')
-
-
-def mkdir(path):
-    """Check if the folder exists, if it does not exist, create it"""
-    isExists = os.path.exists(path)
-    if not isExists:
-        os.makedirs(path)
+    net = net.eval().to(device)
+    return net
 
 
 def save_image(images, filenames, output_dir):
     """save high quality jpeg"""
+
+    def mkdir(path):
+        """Check if the folder exists, if it does not exist, create it"""
+        isExists = os.path.exists(path)
+        if not isExists:
+            os.makedirs(path)
+
     mkdir(output_dir)
     for i, filename in enumerate(filenames):
         # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
@@ -74,8 +89,6 @@ def run_attack(
                 transforms.ToTensor(),
                 transforms.Resize(299),
                 transforms.CenterCrop(299),
-                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-                # mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
             ]
         )
     else:
@@ -84,28 +97,17 @@ def run_attack(
                 transforms.ToTensor(),
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
-                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-                # mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
             ]
         )
+
     print('Loaded source model...')
     model = load_model(opt.modeltype)
-    model = torch.nn.Sequential(
-        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        model.eval().to(device)
-    )
-
     model_name = opt.modeltype
 
     print('Loaded transfer models...')
-    all_model_names = ['resnet18', 'resnet50', 'densenet121', 'vgg19', 'Inc-v3', 'alexnet']
+    all_model_names = ['resnet18', 'densenet121', 'vgg19', 'inception_v3', 'googlet', 'alexnet']
     transfer_model_names = [x for x in all_model_names if x != opt.modeltype]
     transfer_models = [load_model(x) for x in transfer_model_names]
-    for model_ in transfer_models:
-        model_ = torch.nn.Sequential(
-            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            model_.eval().to(device)
-        )
 
     success_rate = dict()  # 攻击成功率
     for name in all_model_names:
@@ -123,11 +125,11 @@ def run_attack(
             attack = TAIDG()
             adv = attack(model, images, labels)
 
-        output = model(adv).max(dim=1)[1]
+        output = model(TNormalize(adv)).max(dim=1)[1]
         success_rate[model_name] += (output != labels).sum().item()
 
         for transfer_model_name, transfer_model in zip(transfer_model_names, transfer_models):
-            output = transfer_model(adv).max(dim=1)[1]
+            output = transfer_model(TNormalize(adv)).max(dim=1)[1]
             success_rate[transfer_model_name] += (output != labels).sum().item()
 
         # save adv image ?
@@ -140,4 +142,4 @@ def run_attack(
 
 
 if __name__ == '__main__':
-    run_attack(method="test", use_Inc_model=False, save_img=True)
+    run_attack(method="test", use_Inc_model=False, save_img=False)
