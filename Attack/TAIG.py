@@ -89,7 +89,7 @@ class TAIG:
             ig = self.compute_ig(model, images, labels)
             adv = adv.detach() - self.alpha * torch.sign(ig)
             adv = torch.where(adv > images + self.eps, images + self.eps, adv)
-            adv = torch.where(adv < images - self.eps, images + self.eps, adv)
+            adv = torch.where(adv < images - self.eps, images - self.eps, adv)
             adv = torch.clip(adv, 0, 1)
 
         return adv
