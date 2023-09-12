@@ -136,3 +136,6 @@ class LayerCAM(CAM):
             cam = F.relu(cam)
             cam = cam - cam.min() / (cam.max() - cam.min())
         return cam
+
+    def __call__(self, x):
+        return self.forward(x)
