@@ -6,6 +6,7 @@ from torch.utils import data
 import os
 import argparse
 import pandas as pd
+from torchvision.transforms import Normalize
 from tqdm import tqdm
 from PIL import Image
 
@@ -46,33 +47,23 @@ parser.add_argument("--batch_size", type=int, default=10, help="How many images 
 opt = parser.parse_args()
 
 
+def TNormalize(x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    if not IsRe:
+        x = Normalize(mean=mean, std=std)(x)
+    elif IsRe:
+        # tensor.shape:(3,w.h)
+        for idx, i in enumerate(std):
+            x[:, idx, :, :] *= i
+        for index, j in enumerate(mean):
+            x[:, index, :, :] += j
+    return x
+
+
 def mkdir(path):
     """Check if the folder exists, if it does not exist, create it"""
     isExists = os.path.exists(path)
     if not isExists:
         os.makedirs(path)
-
-
-class Normalize(nn.Module):
-
-    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-        """
-        (input - mean) / std
-        ImageNet normalize:
-            'tensorflow': mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
-            'torch': mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        """
-        super(Normalize, self).__init__()
-        self.mean = mean
-        self.std = std
-
-    def forward(self, input):
-        size = input.size()
-        x = input.clone()
-
-        for i in range(size[1]):
-            x[:, i] = (x[:, i] - self.mean[i]) / self.std[i]
-        return x
 
 
 class ImageNet(data.Dataset):
@@ -128,15 +119,9 @@ def get_model(net_name, model_dir):
         exit()
 
     if 'inc' in net_name:
-        model = nn.Sequential(
-            # Images for inception classifier are normalized to be in [-1, 1] interval.
-            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            net.KitModel(model_path, aux_logits=False).eval().cuda(), )
+        model = net.KitModel(model_path, aux_logits=False).eval().cuda()
     else:
-        model = nn.Sequential(
-            # Images for inception classifier are normalized to be in [-1, 1] interval.
-            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            net.KitModel(model_path).eval().cuda(), )
+        model = net.KitModel(model_path).eval().cuda()
     return model
 
 
@@ -181,11 +166,11 @@ def main():
         # Start Attack
         adv_img = attack(models[opt.white_model], images, label)
         # Save adversarial examples
-        save_img(adv_img, filename, opt.output_dir)
+        #  save_img(adv_img, filename, opt.output_dir)
         # Prediction
         with torch.no_grad():
             for net in list_nets:
-                logits[net] = models[net](adv_img)
+                logits[net] = models[net](TNormalize(adv_img))
                 correct_num[net] += (torch.argmax(logits[net], axis=1) != label).detach().sum().cpu()
 
     # Print attack success rate
