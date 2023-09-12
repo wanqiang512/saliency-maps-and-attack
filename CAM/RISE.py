@@ -2,10 +2,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
 
 
 class RISE(nn.Module):
-    def __init__(self, model, n_masks=50, p1=0.1, input_size=(224, 224), initial_mask_size=(7, 7), n_batch=128, mask_path=None):
+    def __init__(self, model, n_masks=50, p1=0.1, input_size=(224, 224), initial_mask_size=(7, 7), n_batch=128,
+                 mask_path=None):
         super().__init__()
         self.model = model
         self.n_masks = n_masks
@@ -19,7 +21,18 @@ class RISE(nn.Module):
         else:
             self.masks = self.generate_masks()
 
-    def generate_masks(self): # 随机生成mask
+    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        if not IsRe:
+            x = Normalize(mean=mean, std=std)(x)
+        elif IsRe:
+            # tensor.shape:(3,w.h)
+            for idx, i in enumerate(std):
+                x[:, idx, :, :] *= i
+            for index, j in enumerate(mean):
+                x[:, index, :, :] += j
+        return x
+
+    def generate_masks(self):  # 随机生成mask
         # cell size in the upsampled mask
         Ch = np.ceil(self.input_size[0] / self.initial_mask_size[0])
         Cw = np.ceil(self.input_size[1] / self.initial_mask_size[1])
@@ -42,11 +55,11 @@ class RISE(nn.Module):
             # random cropping
             i = np.random.randint(0, Ch)
             j = np.random.randint(0, Cw)
-            mask = mask[:, :, i:i+self.input_size[0], j:j+self.input_size[1]]
+            mask = mask[:, :, i:i + self.input_size[0], j:j + self.input_size[1]]
 
             masks.append(mask)
 
-        masks = torch.cat(masks, dim=0)   # (N_masks, 1, H, W)
+        masks = torch.cat(masks, dim=0)  # (N_masks, 1, H, W)
 
         return masks
 
@@ -68,10 +81,10 @@ class RISE(nn.Module):
 
         for i in range(0, self.n_masks, self.n_batch):
             input = masked_x[i:min(i + self.n_batch, self.n_masks)].to(device)
-            out = self.model(input)
+            out = self.model(self.TNormalize(input))
             probs.append(torch.softmax(out, dim=1).to('cpu').data)
 
-        probs = torch.cat(probs)    # shape => (n_masks, n_classes)
+        probs = torch.cat(probs)  # shape => (n_masks, n_classes)
         n_classes = probs.shape[1]
 
         # caluculate saliency map using probability scores as weights
