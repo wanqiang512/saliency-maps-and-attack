@@ -30,7 +30,7 @@ class TAIG:
         self.R = R
         self.iters = iters
         self.device = device
-        self.seed_torch(0)
+        self.seed_torch(1024)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""
@@ -69,7 +69,6 @@ class TAIG:
             temp_image = scaled_inputs[:, _, :, :, :].clone().detach()
             temp_image.requires_grad = True
             logits = model(self.TNormalize(temp_image))
-            logits = nn.functional.softmax(logits, dim=1)
             score = logits[:, temp_label]
             loss = torch.mean(score)
             model.zero_grad()
