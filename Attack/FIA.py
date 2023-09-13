@@ -75,6 +75,8 @@ class FIA:
         return backward_hook
 
     def __call__(self, model: nn.Module, inputs: torch.tensor, labels: torch.tensor, layer: str):
+        self.feature_map.clear()
+        self.weight.clear()
         if torch.max(inputs) > 1 or torch.min(inputs) < 0:
             raise ValueError('Input must have a range [0, 1] (max: {}, min: {})'.format(
                 torch.max(inputs), torch.min(inputs))
