@@ -121,7 +121,10 @@ class LayerCAM(CAM):
         logits = self.model(TNormalize(x))
 
         if idx is None:
-            idx = torch.argmax(logits, dim=1).to(self.device)
+            prob, idx = torch.max(logits, dim=1)
+            idx = idx.item()
+            prob = prob.item()
+            print("predicted class ids {}\t probability {}".format(idx, prob))
 
         one_hot = F.one_hot(idx, len(logits[0]))
         logits = F.softmax(logits, dim=1)
