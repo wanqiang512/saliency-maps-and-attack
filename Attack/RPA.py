@@ -106,6 +106,8 @@ class RPA:
 
     def __call__(self, model, inputs: tensor, labels: tensor, layer: str, *args,
                  **kwargs):
+        self.weight.clear()
+        self.feature_map.clear()
         if torch.max(inputs) > 1 or torch.min(inputs) < 0:
             raise ValueError('Input must have a range [0, 1] (max: {}, min: {})'.format(
                 torch.max(inputs), torch.min(inputs))
