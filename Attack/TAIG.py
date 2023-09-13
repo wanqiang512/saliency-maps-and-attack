@@ -65,7 +65,7 @@ class TAIG:
             scaled_inputs = scaled_inputs + temp
         IG = []
         for _ in range(scaled_inputs.shape[1]):
-            temp_label = labels[_]
+            temp_label = labels[_].unsqueeze(0)
             temp_image = scaled_inputs[:, _, :, :, :].clone().detach()
             temp_image.requires_grad = True
             logits = model(self.TNormalize(temp_image))
