@@ -23,7 +23,6 @@ class NAA:
 
     def get_NAA_loss(self, x, model, weight, base_feature):
         self.feature_map.clear()
-        loss = 0
         gamma = 1.0
         logits = model(self.TNormalize(x))
         attribution = (self.feature_map[0] - base_feature) * weight
@@ -111,10 +110,8 @@ class NAA:
 
             self.feature_map.clear()
             base_line = torch.zeros_like(inputs)
-            base_feature = 0
             logits = model(self.TNormalize(base_line))
-            for fm in self.feature_map:
-                base_feature += fm
+            base_feature = self.feature_map[0]
             self.feature_map.clear()
             loss = self.get_NAA_loss(adv, model, weight, base_feature)
             loss.backward()
