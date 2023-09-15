@@ -29,7 +29,7 @@ class FIA:
         self.drop_pb = drop_pb
         self.feature_map = {}
         self.weight = {}
-        self.seed_torch(1024)
+        self.seed_torch(1234)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""
@@ -51,7 +51,7 @@ class FIA:
         loss = torch.sum(attribution) / attribution.numel()
         return loss
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    def TNormalize(self, x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
         if not IsRe:
             x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
