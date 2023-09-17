@@ -17,11 +17,11 @@ class SSA:
             u=1.0,
             rho=0.5
     ):
-        self.eps = eps,
-        self.iters = iters,
-        self.ens = ens,
-        self.sigma = sigma,
-        self.u = u,
+        self.eps = eps
+        self.iters = iters
+        self.ens = ens
+        self.sigma = sigma
+        self.u = u
         self.rho = rho
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.alpha = eps / iters
@@ -186,7 +186,7 @@ class SSA:
         plt.show()
         plt.savefig("fig.png")"""
 
-    def __call__(self, model, inputs, images_ID, labels, *args, **kwargs):
+    def __call__(self, model, inputs, labels, *args, **kwargs):
         adv = inputs.clone().detach().to(self.device)
         inputs_min = self.clip_by_tensor(inputs - self.eps, 0.0, 1.0)
         inputs_max = self.clip_by_tensor(inputs + self.eps, 0.0, 1.0)
