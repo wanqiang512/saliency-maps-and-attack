@@ -144,7 +144,7 @@ class SSA:
                 x[:, index, :, :] += j
         return x
 
-    def clip_by_tensor(t, t_min, t_max):
+    def clip_by_tensor(self, t, t_min, t_max):
         """
         clip_by_tensor
         :param t: tensor
