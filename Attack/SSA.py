@@ -195,9 +195,9 @@ class SSA:
             for x in range(self.ens):
                 gauss = torch.randn(inputs.shape) * self.sigma
                 gauss = gauss.to(self.device)
-                dct = self.dct(adv + gauss).to(self.device)
+                dct = self.dct_2d(adv + gauss).to(self.device)
                 mask = (torch.rand_like(adv) * 2 * self.rho + 1 - self.rho).to(self.device)
-                idct = self.idct(dct * mask)
+                idct = self.idct_2d(dct * mask)
                 idct.requires_grad = True
                 logits = model(idct)
                 model.zero_grad()
