@@ -189,7 +189,7 @@ class SSA:
     def __call__(self, model, inputs, images_ID, labels, *args, **kwargs):
         adv = inputs.clone().detach().to(self.device)
         inputs_min = self.clip_by_tensor(inputs - self.eps, 0.0, 1.0)
-        inputs_max = self.clip_by_tensor(inputs_min + self.eps, 0.0, 1.0)
+        inputs_max = self.clip_by_tensor(inputs + self.eps, 0.0, 1.0)
         for l in range(self.iters):
             noise = 0
             for x in range(self.ens):
