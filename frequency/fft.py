@@ -58,10 +58,10 @@ def generateDataWithDifferentFrequencies_GrayScale(Images, r):
     Images_freq_low = []
     mask = mask_radial(np.zeros([Images.shape[1], Images.shape[2]]), r)
     for i in range(Images.shape[0]):
-        fd = fftshift(Images[i, :].reshape([28, 28]))
+        fd = fftshift(Images[i, :].reshape([Images.shape[1], Images.shape[2]]))
         fd = fd * mask
         img_low = ifftshift(fd)
-        Images_freq_low.append(np.real(img_low).reshape([28 * 28]))
+        Images_freq_low.append(np.real(img_low).reshape(Images.shape[1] *  Images.shape[2]]))
 
     return np.array(Images_freq_low)
 
