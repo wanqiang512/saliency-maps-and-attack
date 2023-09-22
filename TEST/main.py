@@ -21,9 +21,11 @@ from torch_nets import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_csv', type=str, default='./dataset/images.csv', help='Input directory with images.')
-parser.add_argument('--input_dir', type=str, default='./dataset/images', help='Input directory with images.')
-parser.add_argument('--adv_dir', type=str, default='./outputs', help='Output directory with adversarial images.')
+parser.add_argument('--input_csv', type=str, default=r'F:\wanqiang\CAM-attack-main\dataset\NIPS_1000\images.csv',
+                    help='Input directory with images.')
+parser.add_argument('--input_dir', type=str, default=r'F:\wanqiang\CAM-attack-main\dataset\NIPS_1000\images',
+                    help='Input directory with images.')
+parser.add_argument('--adv_dir', type=str, default='./adv_img', help='Output directory with adversarial images.')
 batch_size = 10
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -33,25 +35,25 @@ def get_model(net_name, model_dir):
     """Load converted model"""
     model_path = os.path.join(model_dir, net_name + '.npy')
 
-    if net_name == 'tf_inception_v3':
+    if net_name == 'tf2torch_inception_v3':
         net = tf2torch_inception_v3
-    elif net_name == 'tf_inception_v4':
+    elif net_name == 'tf2torch_inception_v4':
         net = tf2torch_inception_v4
-    elif net_name == 'tf_resnet_v2_50':
+    elif net_name == 'tf2torch_resnet_v2_50':
         net = tf2torch_resnet_v2_50
-    elif net_name == 'tf_resnet_v2_101':
+    elif net_name == 'tf2torch_resnet_v2_101':
         net = tf2torch_resnet_v2_101
-    elif net_name == 'tf_resnet_v2_152':
+    elif net_name == 'tf2torch_resnet_v2_152':
         net = tf2torch_resnet_v2_152
-    elif net_name == 'tf_inc_res_v2':
+    elif net_name == 'tf2torch_inc_res_v2':
         net = tf2torch_inc_res_v2
-    elif net_name == 'tf_adv_inception_v3':
+    elif net_name == 'tf2torch_adv_inception_v3':
         net = tf2torch_adv_inception_v3
-    elif net_name == 'tf_ens3_adv_inc_v3':
+    elif net_name == 'tf2torch_ens3_adv_inc_v3':
         net = tf2torch_ens3_adv_inc_v3
-    elif net_name == 'tf_ens4_adv_inc_v3':
+    elif net_name == 'tf2torch_ens4_adv_inc_v3':
         net = tf2torch_ens4_adv_inc_v3
-    elif net_name == 'tf_ens_adv_inc_res_v2':
+    elif net_name == 'tf2torch_ens_adv_inc_res_v2':
         net = tf2torch_ens_adv_inc_res_v2
     else:
         print('Wrong model name!')
@@ -81,9 +83,11 @@ def verify(model_name, path):
 
 
 def main():
-    model_names = ['tf_inception_v3', 'tf_inception_v4', 'tf_inc_res_v2', 'tf_resnet_v2_152', 'tf_resnet_v2_50',
-                   'tf_resnet_v2_101', 'tf_adv_inception_v3', 'tf_ens3_adv_inc_v3', 'tf_ens4_adv_inc_v3',
-                   'tf_ens_adv_inc_res_v2']
+    model_names = ['tf2torch_inception_v3', 'tf2torch_inception_v4', 'tf2torch_inc_res_v2',
+                   'tf2torch_resnet_v2_152', 'tf2torch_resnet_v2_50',
+                   'tf2torch_resnet_v2_101', 'tf2torch_adv_inception_v3', 'tf2torch_ens3_adv_inc_v3',
+                   'tf2torch_ens4_adv_inc_v3',
+                   'tf2torch_ens_adv_inc_res_v2']
     models_path = '../torch_nets_weight/'
     for model_name in model_names:
         verify(model_name, models_path)
