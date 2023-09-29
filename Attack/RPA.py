@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch import tensor
 from torchvision.transforms import Normalize
+import torch.nn.functional as F
 
 __all__ = ["RPA"]
 
@@ -104,7 +105,7 @@ class RPA:
         loss = torch.sum(attribution) / attribution.numel()
         return loss
 
-    def __call__(self, model, inputs: tensor, labels: tensor, layer: str, *args,**kwargs):
+    def __call__(self, model, inputs: tensor, labels: tensor, layer: str, *args, **kwargs):
         self.weight.clear()
         self.feature_map.clear()
         if torch.max(inputs) > 1 or torch.min(inputs) < 0:
@@ -143,8 +144,8 @@ class RPA:
                     mask = torch.from_numpy(mask).to(self.device, dtype=torch.float32).permute(0, 3, 1, 2)
                     images_temp = (mask * images)
                     logits = model(self.TNormalize(images_temp))  # pytorch models normalized
-                    logits = nn.functional.softmax(logits, dim=1)
-                    one_hot = nn.functional.one_hot(labels, len(logits[0])).float()
+                    logits = F.softmax(logits, dim=1)
+                    one_hot = F.one_hot(labels, len(logits[0])).float()
                     score = one_hot * logits
                     loss = torch.sum(score)
                     loss.backward()
@@ -152,12 +153,12 @@ class RPA:
 
                 temp_weight.to(self.device)
                 square = torch.sum(torch.square(temp_weight), [1, 2, 3], keepdim=True)
-                weight = - temp_weight / torch.sqrt(square)
+                weight = temp_weight / torch.sqrt(square)
 
             loss = self.get_RPA_loss(adv, model, layer, weight)
             grad = torch.autograd.grad(outputs=loss, inputs=adv, retain_graph=False)[0]
             g = self.u * g + grad / torch.mean(torch.abs(grad), dim=(1, 2, 3), keepdim=True)
-            adv = adv + self.alpha * torch.sign(g)
+            adv = adv - self.alpha * torch.sign(g)
             delta = torch.clip(adv - images, -self.eps, self.eps)
             adv = torch.clip(images + delta, 0, 1).detach_()
         return adv
