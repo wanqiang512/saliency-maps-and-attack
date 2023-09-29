@@ -103,8 +103,8 @@ class NAA:
                     image_tmp = torch.clip(inputs.clone() + temp_noise, 0, 1)
                     image_tmp = (image_tmp * (1 - l / self.ens) + (l / self.ens) * x_base)
                     logits = model(self.TNormalize(image_tmp))
-                    logits = nn.functional.softmax(logits, 1)
-                    labels_onehot = nn.functional.one_hot(labels, num_classes=len(logits[0])).float()
+                    logits = F.softmax(logits, 1)
+                    labels_onehot = F.one_hot(labels, num_classes=len(logits[0])).float()
                     score = logits * labels_onehot
                     loss = torch.sum(score)
                     loss.backward()
@@ -112,7 +112,7 @@ class NAA:
 
                 weight = temp_weight.to(self.device).clone().detach()
                 square = torch.sum(torch.square(weight), [1, 2, 3], keepdim=True)
-                weight = -weight / torch.sqrt(square)
+                weight = weight / torch.sqrt(square)
 
             self.feature_map.clear()
             base_line = torch.zeros_like(inputs)
@@ -124,8 +124,7 @@ class NAA:
             adv_grad = adv.grad.clone().detach()
             adv.grad.data.zero_()
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
-            adv = adv + a * torch.sign(g)
-            diff = adv - inputs
-            noise = torch.clip(diff, -self.esp, self.esp)
+            adv = adv - a * torch.sign(g)
+            noise = torch.clip(adv - inputs, -self.esp, self.esp)
             adv = torch.clip(images + noise, 0, 1).detach_()
         return adv
