@@ -5,6 +5,7 @@ import torch.nn as nn
 import numpy as np
 from torch import tensor
 from torchvision.transforms import Normalize
+import torch.nn.functional as F
 
 __all__ = ['FIA']
 
@@ -105,8 +106,8 @@ class FIA:
                     mask = torch.from_numpy(mask).to(self.device)
                     image_tmp = images.clone() * mask
                     logits = model(self.TNormalize(image_tmp))
-                    logits = nn.functional.softmax(logits, 1)
-                    labels_onehot = torch.nn.functional.one_hot(labels, len(logits[0])).float()
+                    logits = F.softmax(logits, 1)
+                    labels_onehot = F.one_hot(labels, len(logits[0])).float()
                     score = logits * labels_onehot
                     loss = torch.sum(score)
                     loss.backward()
@@ -114,15 +115,14 @@ class FIA:
 
                 temp_weight.to(self.device)
                 square = torch.sum(torch.square(temp_weight), [1, 2, 3], keepdim=True)
-                weight = - temp_weight / torch.sqrt(square)
+                weight = temp_weight / torch.sqrt(square)
 
             loss = self.get_FIA_loss(adv, model, weight, layer)
             loss.backward()
-
             adv_grad = adv.grad.clone()
             adv.grad.data.zero_()
             g = self.u * g + (adv_grad / (torch.mean(torch.abs(adv_grad), [1, 2, 3], keepdim=True)))
-            adv = adv.detach_() + a * torch.sign(g)
+            adv = adv.detach_() - a * torch.sign(g)
             delta = torch.clip(adv - inputs, -self.eps, self.eps)
             adv = torch.clip(inputs + delta, 0, 1).detach_()
         return adv
