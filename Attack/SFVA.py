@@ -162,7 +162,7 @@ class SFVA:
                 square = torch.sum(torch.square(temp_weight), [1, 2, 3], keepdim=True)
                 weight = temp_weight / torch.sqrt(square)
 
-            loss = self.get_SFVA_loss(inputs, adv, model, weight, layer)
+            loss = self.get_SFVA_loss(inputs, adv, model, weight, [layer])
             loss.backward()
             adv_grad = adv.grad.clone()
             adv.grad.data.zero_()
