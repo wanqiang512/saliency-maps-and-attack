@@ -100,7 +100,8 @@ class NAA:
                     x_base = torch.zeros_like(inputs)
                     temp_noise = np.random.normal(size=inputs.shape, loc=0.0, scale=0.2)
                     temp_noise = torch.from_numpy(temp_noise).to(self.device, dtype=torch.float32)
-                    image_tmp = torch.clip(inputs.clone() + temp_noise, 0, 1)
+                    image_tmp = self.TNormalize(inputs.clone()) + temp_noise
+                    image_tmp = self.TNormalize(image_tmp, IsRe=True)
                     image_tmp = (image_tmp * (1 - l / self.ens) + (l / self.ens) * x_base)
                     logits = model(self.TNormalize(image_tmp))
                     logits = F.softmax(logits, 1)
