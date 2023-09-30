@@ -47,7 +47,7 @@ class SFVA:
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.enabled = False
 
-    def advanced_mask(img, p):
+    def advanced_mask(self, img, p):
         # get width and height of the image
         s = img.shape
         b = s[0]
@@ -147,9 +147,14 @@ class SFVA:
                     temp = inputs.clone().detach()
                     temp = temp.cpu().numpy().transpose(0, 2, 3, 1)
                     images_tmp = self.advanced_mask(temp, 0.1)
+                    images_tmp = self.TNormalize(images_tmp)
                     images_tmp += np.random.uniform(low=-self.a, high=self.a, size=images_tmp.shape)
+                    images_tmp = self.TNormalize(images_tmp, IsRe=True)
                     images_tmp = images_tmp * (1 - l / self.ens)
                     images_tmp = torch.from_numpy(images_tmp).permute(0, 3, 1, 2).to(self.device, dtype=torch.float32)
+                    # import matplotlib.pyplot as plt
+                    # plt.imshow(images_tmp.detach().cpu().squeeze().numpy().transpose(1, 2, 0))
+                    # plt.show()
                     logits = model(self.TNormalize(images_tmp))
                     logits = F.softmax(logits, 1)
                     labels_onehot = F.one_hot(labels, len(logits[0])).float()
