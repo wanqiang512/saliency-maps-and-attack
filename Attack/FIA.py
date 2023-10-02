@@ -30,7 +30,7 @@ class FIA:
         self.drop_pb = drop_pb
         self.feature_map = {}
         self.weight = {}
-        self.seed_torch(1234)
+        self.seed_torch(1024)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""

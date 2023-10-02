@@ -20,7 +20,7 @@ class NAA:
         self.ens = ens
         self.feature_map = {}
         self.weight = {}
-        self.seed_torch(1234)
+        self.seed_torch(1024)
 
     def get_NAA_loss(self, x, model, weight, base_feature, layer):
         self.feature_map.clear()
@@ -98,12 +98,12 @@ class NAA:
                 temp_weight = 0
                 for l in range(self.ens):
                     x_base = torch.zeros_like(inputs)
+                    x_base = self.TNormalize(x_base)
                     temp_noise = np.random.normal(size=inputs.shape, loc=0.0, scale=0.2)
                     temp_noise = torch.from_numpy(temp_noise).to(self.device, dtype=torch.float32)
                     image_tmp = self.TNormalize(inputs.clone()) + temp_noise
-                    image_tmp = self.TNormalize(image_tmp, IsRe=True)
                     image_tmp = (image_tmp * (1 - l / self.ens) + (l / self.ens) * x_base)
-                    logits = model(self.TNormalize(image_tmp))
+                    logits = model(image_tmp)
                     logits = F.softmax(logits, 1)
                     labels_onehot = F.one_hot(labels, num_classes=len(logits[0])).float()
                     score = logits * labels_onehot

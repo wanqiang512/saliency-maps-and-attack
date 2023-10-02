@@ -31,7 +31,7 @@ class RPA:
         self.device = device
         self.feature_map = {}
         self.weight = {}
-        self.seed_torch(1234)
+        self.seed_torch(1024)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""
@@ -136,14 +136,18 @@ class RPA:
                         mask2 = np.random.uniform(0, 1, size=shape)
                         mask = np.where(mask1 == 1, 1, mask2)
                     elif l % 4 == 1:
-                        mask = self.patch_by_strides(shape, patch_size=(3, 3), prob=self.prob)
+                        mask = self.patch_by_strides(shape, patch_size=(5, 5), prob=self.prob)
                     elif l % 4 == 2:
                         mask = self.patch_by_strides(shape, patch_size=(5, 5), prob=self.prob)
                     else:
                         mask = self.patch_by_strides(shape, patch_size=(7, 7), prob=self.prob)
                     mask = torch.from_numpy(mask).to(self.device, dtype=torch.float32).permute(0, 3, 1, 2)
-                    images_temp = (mask * images)
-                    logits = model(self.TNormalize(images_temp))  # pytorch models normalized
+                    images_temp = mask * images
+                    images_temp = self.TNormalize(images_temp)
+                    # import matplotlib.pyplot as plt
+                    # plt.imshow(images_temp.detach().cpu().squeeze().numpy().transpose(1, 2, 0))
+                    # plt.show()
+                    logits = model(images_temp)  # pytorch models normalized
                     logits = F.softmax(logits, dim=1)
                     one_hot = F.one_hot(labels, len(logits[0])).float()
                     score = one_hot * logits

@@ -33,7 +33,7 @@ class SFVA:
         self.prob = prob
         self.feature_map = {}
         self.weight = {}
-        self.seed_torch(1234)
+        self.seed_torch(1024)
 
     def seed_torch(self, seed):
         """Set a random seed to ensure that the results are reproducible"""
@@ -90,8 +90,7 @@ class SFVA:
             nadv = torch.where(clean_attribution < 0, adv_attribution, blank)
             p_attribuion = pclean - padv
             n_attribution = nclean - nadv
-            loss += (torch.sum(p_attribuion) + torch.sum(n_attribution)) / (
-                clean_attribution.numel().to(dtype=torch.float32))
+            loss += (torch.sum(p_attribuion) + torch.sum(n_attribution)) / clean_attribution.numel()
         loss = loss / len(layers)
         return loss
 
@@ -147,15 +146,15 @@ class SFVA:
                     temp = inputs.clone().detach()
                     temp = temp.cpu().numpy().transpose(0, 2, 3, 1)
                     images_tmp = self.advanced_mask(temp, 0.1)
-                    images_tmp = self.TNormalize(images_tmp)
-                    images_tmp += np.random.uniform(low=-self.a, high=self.a, size=images_tmp.shape)
-                    images_tmp = self.TNormalize(images_tmp, IsRe=True)
-                    images_tmp = images_tmp * (1 - l / self.ens)
                     images_tmp = torch.from_numpy(images_tmp).permute(0, 3, 1, 2).to(self.device, dtype=torch.float32)
+                    images_tmp = self.TNormalize(images_tmp)
+                    images_tmp += torch.from_numpy(
+                        np.random.uniform(low=-self.a, high=self.a, size=images_tmp.shape)).to(self.device)
+                    images_tmp = images_tmp * (1 - l / self.ens)
                     # import matplotlib.pyplot as plt
                     # plt.imshow(images_tmp.detach().cpu().squeeze().numpy().transpose(1, 2, 0))
                     # plt.show()
-                    logits = model(self.TNormalize(images_tmp))
+                    logits = model(images_tmp)
                     logits = F.softmax(logits, 1)
                     labels_onehot = F.one_hot(labels, len(logits[0])).float()
                     score = logits * labels_onehot
