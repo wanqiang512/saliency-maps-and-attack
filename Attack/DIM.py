@@ -1,3 +1,7 @@
+import os
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,6 +34,19 @@ class DIM:
         self.diversity_prob = diversity_prob
         self.model = model
         self.device = device
+        self.seed_torch(1234)
+
+    def seed_torch(self, seed):
+        """Set a random seed to ensure that the results are reproducible"""
+        random.seed(seed)
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.enabled = False
 
     def TNormalize(self, x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
         if not IsRe:
