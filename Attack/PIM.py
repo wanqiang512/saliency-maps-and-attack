@@ -78,7 +78,6 @@ def graph(model, x, gt, x_min, x_max):
         model.zero_grad()
         loss.backward()
         noise = x.grad.data
-
         # MI-FGSM
         noise = noise / torch.mean(torch.abs(noise), dim=(1, 2, 3), keepdim=True)
         noise = momentum * decay + noise
