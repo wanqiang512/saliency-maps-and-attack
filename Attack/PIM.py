@@ -120,7 +120,8 @@ def seed_torch(seed):
 def main():
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.5, 0.5, 0.5])
-    model = pretrainedmodels.inception_v3(pretrained=True).eval().cuda()
+    model = torch.nn.Sequential(Normalize(mean, std),
+                                pretrainedmodels.inception_v3(pretrained=True).eval().cuda())
     X = ImageNet(opt.input_dir, opt.input_csv, transforms)
     data_loader = DataLoader(X, batch_size=opt.batch_size, shuffle=False, pin_memory=True, num_workers=4)
     for images, _, gt_cpu in tqdm(data_loader):
