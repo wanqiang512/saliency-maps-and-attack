@@ -1,3 +1,6 @@
+import os
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -50,8 +53,21 @@ class TIM:
         self.stacked_kernel = torch.from_numpy(self.kernel_generation())
         self.model = model
         self.device = device
+        self.seed_torch(1234)
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    def seed_torch(self, seed):
+        """Set a random seed to ensure that the results are reproducible"""
+        random.seed(seed)
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.enabled = False
+
+    def TNormalize(self, x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
         if not IsRe:
             x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
