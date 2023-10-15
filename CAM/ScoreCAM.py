@@ -4,16 +4,7 @@ from statistics import mode, mean
 from torchvision.transforms import Normalize
 
 
-def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-    if not IsRe:
-        x = Normalize(mean=mean, std=std)(x)
-    elif IsRe:
-        # tensor.shape:(3,w.h)
-        for idx, i in enumerate(std):
-            x[:, idx, :, :] *= i
-        for index, j in enumerate(mean):
-            x[:, index, :, :] += j
-    return x
+
 class SaveValues():
     def __init__(self, m):
         # register a hook to save values of activations and gradients
@@ -58,7 +49,7 @@ class CAM(object):
         """
 
         # object classification
-        score = self.model(TNormalize(x))
+        score = self.model(x)
 
         prob = F.softmax(score, dim=1)
 
@@ -100,7 +91,6 @@ class CAM(object):
 
         return cam.data
 
-
 class ScoreCAM(CAM):
     """ Score CAM """
 
@@ -127,7 +117,7 @@ class ScoreCAM(CAM):
             device = x.device
 
             self.model.zero_grad()
-            score = self.model(TNormalize(x))
+            score = self.model(x)
             prob = F.softmax(score, dim=1)
 
             if idx is None:
@@ -160,10 +150,10 @@ class ScoreCAM(CAM):
             # generate masked images and calculate class probabilities
             probs = []
             for i in range(0, C, self.n_batch):
-                mask = self.activations[:, i:i + self.n_batch].transpose(0, 1)
+                mask = self.activations[:, i:i+self.n_batch].transpose(0, 1)
                 mask = mask.to(device)
                 masked_x = x * mask
-                score = self.model(TNormalize(masked_x))
+                score = self.model(masked_x)
                 probs.append(F.softmax(score, dim=1)[:, idx].to('cpu').data)
 
             probs = torch.stack(probs)

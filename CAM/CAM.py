@@ -25,17 +25,6 @@ class SaveValues():
 class CAM(object):
     """ Class Activation Mapping """
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-        if not IsRe:
-            x = Normalize(mean=mean, std=std)(x)
-        elif IsRe:
-            # tensor.shape:(3,w.h)
-            for idx, i in enumerate(std):
-                x[:, idx, :, :] *= i
-            for index, j in enumerate(mean):
-                x[:, index, :, :] += j
-        return x
-
     def __init__(self, model, target_layer):
         """
         Args:
@@ -58,7 +47,7 @@ class CAM(object):
         """
 
         # object classification
-        score = self.model(self.TNormalize(x))
+        score = self.model(x)
 
         prob = F.softmax(score, dim=1)
 
@@ -99,4 +88,3 @@ class CAM(object):
         cam = cam.view(1, 1, h, w)
 
         return cam.data
-

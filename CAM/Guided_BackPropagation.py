@@ -9,17 +9,6 @@ class Guided_BackPropagation():
         self.model = model
         self.model.eval()
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-        if not IsRe:
-            x = Normalize(mean=mean, std=std)(x)
-        elif IsRe:
-            # tensor.shape:(3,w.h)
-            for idx, i in enumerate(std):
-                x[:, idx, :, :] *= i
-            for index, j in enumerate(mean):
-                x[:, index, :, :] += j
-        return x
-
     def normalization(self, x):
         x -= x.min()
         if x.max() <= 0.:
@@ -48,7 +37,7 @@ class Guided_BackPropagation():
             if isinstance(module, nn.ReLU):
                 self.handlers.append(module.register_backward_hook(self.relu_backward_hook))
 
-        output = self.model(self.TNormalize(self.input_TensorImage))
+        output = self.model(self.input_TensorImage)
 
         if target_label is None:
             target_tensor = torch.zeros_like(output)

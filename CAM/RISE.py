@@ -21,17 +21,6 @@ class RISE(nn.Module):
         else:
             self.masks = self.generate_masks()
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-        if not IsRe:
-            x = Normalize(mean=mean, std=std)(x)
-        elif IsRe:
-            # tensor.shape:(3,w.h)
-            for idx, i in enumerate(std):
-                x[:, idx, :, :] *= i
-            for index, j in enumerate(mean):
-                x[:, index, :, :] += j
-        return x
-
     def generate_masks(self):  # 随机生成mask
         # cell size in the upsampled mask
         Ch = np.ceil(self.input_size[0] / self.initial_mask_size[0])
@@ -81,7 +70,7 @@ class RISE(nn.Module):
 
         for i in range(0, self.n_masks, self.n_batch):
             input = masked_x[i:min(i + self.n_batch, self.n_masks)].to(device)
-            out = self.model(self.TNormalize(input))
+            out = self.model(input)
             probs.append(torch.softmax(out, dim=1).to('cpu').data)
 
         probs = torch.cat(probs)  # shape => (n_masks, n_classes)
