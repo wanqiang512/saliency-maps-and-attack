@@ -1,6 +1,5 @@
 import argparse
 import os
-
 import numpy as np
 import pretrainedmodels
 import torch
@@ -8,7 +7,6 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from tqdm import tqdm
-
 from Normalize import Normalize
 from loader import ImageNet
 

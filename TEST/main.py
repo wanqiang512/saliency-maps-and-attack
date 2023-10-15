@@ -21,11 +21,12 @@ from torch_nets import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_csv', type=str, default=r'F:\wanqiang\CAM-attack-main\dataset\NIPS_1000\images.csv',
+parser.add_argument('--input_csv', type=str, default=r'.\dataset\images.csv',
                     help='Input directory with images.')
-parser.add_argument('--input_dir', type=str, default=r'F:\wanqiang\CAM-attack-main\dataset\NIPS_1000\images',
+parser.add_argument('--input_dir', type=str, default=r'.\dataset\images',
                     help='Input directory with images.')
-parser.add_argument('--adv_dir', type=str, default='./adv_img', help='Output directory with adversarial images.')
+parser.add_argument('--adv_dir', type=str, default="./adv_img",
+                    help='Output directory with adversarial images.')
 batch_size = 10
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -88,7 +89,7 @@ def main():
                    'tf2torch_resnet_v2_101', 'tf2torch_adv_inception_v3', 'tf2torch_ens3_adv_inc_v3',
                    'tf2torch_ens4_adv_inc_v3',
                    'tf2torch_ens_adv_inc_res_v2']
-    models_path = '../torch_nets_weight/'
+    models_path = './torch_nets_weight/'
     for model_name in model_names:
         verify(model_name, models_path)
         print("===================================================")

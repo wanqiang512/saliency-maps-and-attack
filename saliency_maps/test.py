@@ -17,7 +17,7 @@ out = model(x)
 # print(grayscale_cam[0])
 # import matplotlib.pyplot as plt
 #
-# # Visualize the raw CAM
+# # Visualize the raw saliency_maps
 # plt.imshow(grayscale_cam[0].squeeze().numpy());
 # plt.axis('off');
 # plt.tight_layout();
@@ -28,14 +28,14 @@ from GradCAMplusplus import GradCamplusplus
 cam = GradCamplusplus(model)
 test = cam.get_gradient(x, "layer4", out.argmax(dim=1).item())
 print(test)
-# Visualize the raw CAM
+# Visualize the raw saliency_maps
 plt.imshow(test[0].squeeze().numpy());
 plt.axis('off');
 plt.tight_layout();
 plt.show()
 
-from torchcam.utils import  overlay_mask
-# Resize the CAM and overlay it
+from saliency_maps.utils import  overlay_mask
+# Resize the saliency_maps and overlay it
 result = overlay_mask(to_pil_image(img), to_pil_image(test[0].squeeze(0), mode='F'), alpha=0.5)
 # Display it
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()

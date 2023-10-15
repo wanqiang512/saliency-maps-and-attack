@@ -1,53 +1,28 @@
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from torchvision import transforms as T
-from torch.utils import data
 import os
-import argparse
-import pandas as pd
+import torch
+from PIL import Image
+from torchvision import transforms
 from torchvision.transforms import Normalize
 from tqdm import tqdm
-from PIL import Image
-
-from net import (
-    tf2torch_inception_v3,
-    tf2torch_inception_v4,
-    tf2torch_resnet_v2_50,
-    tf2torch_resnet_v2_101,
-    tf2torch_resnet_v2_152,
-    tf2torch_inc_res_v2,
-    tf2torch_adv_inception_v3,
-    tf2torch_ens3_adv_inc_v3,
-    tf2torch_ens4_adv_inc_v3,
-    tf2torch_ens_adv_inc_res_v2,
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
+import argparse
+from torchvision.models import (
+    resnet50, vgg19, alexnet, densenet121, swin_t, swin_b, swin_s, inception_v3, googlenet, efficientnet_b4,
+    ResNet50_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
+    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights, Inception_V3_Weights, GoogLeNet_Weights, EfficientNet_B4_Weights
 )
 
-list_nets = [
-    'tf2torch_inception_v3',
-    'tf2torch_inception_v4',
-    'tf2torch_resnet_v2_50',
-    'tf2torch_resnet_v2_101',
-    'tf2torch_resnet_v2_152',
-    'tf2torch_inc_res_v2',
-    'tf2torch_adv_inception_v3',
-    'tf2torch_ens3_adv_inc_v3',
-    'tf2torch_ens4_adv_inc_v3',
-    'tf2torch_ens_adv_inc_res_v2'
-]
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--gpu', type=str, default='0', help='The ID of GPU to use.')
-parser.add_argument('--input_csv', type=str, default='dataset/dev_dataset.csv', help='Input csv with images.')
-parser.add_argument('--input_dir', type=str, default='dataset/images/', help='Input images.')
-parser.add_argument('--output_dir', type=str, default='adv_img_torch/', help='Output directory with adv images.')
-parser.add_argument('--model_dir', type=str, default='torch_nets_weight/', help='Model weight directory.')
-parser.add_argument('--white_model', type=str, default='tf2torch_inception_v3', help='Substitution model.')
-parser.add_argument("--batch_size", type=int, default=10, help="How many images process at one time.")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+parser = argparse.ArgumentParser(description="Test.py")
+parser.add_argument('--root', type=str, default=r'D:\PNAA\val5000',
+                    help='Input images.')
+parser.add_argument('--save_adv', type=str, default='adv_img/', help='Output directory with adv images.')
+parser.add_argument('--modeltype', type=str, default='resnet50', help='Substitution model.')
 opt = parser.parse_args()
 
 
-def TNormalize(x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
     if not IsRe:
         x = Normalize(mean=mean, std=std)(x)
     elif IsRe:
@@ -59,82 +34,42 @@ def TNormalize(x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
     return x
 
 
-def mkdir(path):
-    """Check if the folder exists, if it does not exist, create it"""
-    isExists = os.path.exists(path)
-    if not isExists:
-        os.makedirs(path)
-
-
-class ImageNet(data.Dataset):
-    """load data from img and csv"""
-
-    def __init__(self, dir, csv_path, transforms=None):
-        self.dir = dir
-        self.csv = pd.read_csv(csv_path)
-        self.transforms = transforms
-
-    def __getitem__(self, index):
-        img_obj = self.csv.loc[index]
-        ImageID = img_obj['ImageId'] + '.png'
-        Truelabel = img_obj['TrueLabel']
-        img_path = os.path.join(self.dir, ImageID)
-        pil_img = Image.open(img_path).convert('RGB')
-        if self.transforms:
-            data = self.transforms(pil_img)
-        else:
-            data = pil_img
-        return data, ImageID, Truelabel
-
-    def __len__(self):
-        return len(self.csv)
-
-
-def get_model(net_name, model_dir):
-    """Load converted model"""
-    model_path = os.path.join(model_dir, net_name + '.npy')
-
-    if net_name == 'tf2torch_inception_v3':
-        net = tf2torch_inception_v3
-    elif net_name == 'tf2torch_inception_v4':
-        net = tf2torch_inception_v4
-    elif net_name == 'tf2torch_resnet_v2_50':
-        net = tf2torch_resnet_v2_50
-    elif net_name == 'tf2torch_resnet_v2_101':
-        net = tf2torch_resnet_v2_101
-    elif net_name == 'tf2torch_resnet_v2_152':
-        net = tf2torch_resnet_v2_152
-    elif net_name == 'tf2torch_inc_res_v2':
-        net = tf2torch_inc_res_v2
-    elif net_name == 'tf2torch_adv_inception_v3':
-        net = tf2torch_adv_inception_v3
-    elif net_name == 'tf2torch_ens3_adv_inc_v3':
-        net = tf2torch_ens3_adv_inc_v3
-    elif net_name == 'tf2torch_ens4_adv_inc_v3':
-        net = tf2torch_ens4_adv_inc_v3
-    elif net_name == 'tf2torch_ens_adv_inc_res_v2':
-        net = tf2torch_ens_adv_inc_res_v2
+def load_model(model_name):
+    if model_name == 'resnet50':
+        net = resnet50(weights=ResNet50_Weights.DEFAULT)
+    elif model_name == 'densenet121':
+        net = densenet121(weights=DenseNet121_Weights.DEFAULT)
+    elif model_name == 'vgg19':
+        net = vgg19(weights=VGG19_Weights.DEFAULT)
+    elif model_name == 'inception_v3':
+        net = inception_v3(weights=Inception_V3_Weights.DEFAULT)
+    elif model_name == 'googlet':
+        net = googlenet(weights=GoogLeNet_Weights.DEFAULT)
+    elif model_name == 'alexnet':
+        net = alexnet(weights=AlexNet_Weights.DEFAULT)
+    elif model_name == 'swin_t':
+        net = swin_t(weights=Swin_T_Weights.DEFAULT)
+    elif model_name == 'swin_b':
+        net = swin_b(weights=Swin_B_Weights.DEFAULT)
+    elif model_name == 'swin_s':
+        net = swin_s(weights=Swin_S_Weights.DEFAULT)
+    elif model_name == "efficientnet_b4":
+        net = efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)
     else:
-        print('Wrong model name:', net_name, '!')
-        exit()
-
-    if 'inc' in net_name:
-        model = net.KitModel(model_path, aux_logits=False).eval().cuda()
-    else:
-        model = net.KitModel(model_path).eval().cuda()
-    return model
+        print('Not supported model')
+    net = net.eval().to(device)
+    return net
 
 
-def get_models(list_nets, model_dir):
-    """load models with dict"""
-    nets = {}
-    for net in list_nets:
-        nets[net] = get_model(net, model_dir)
-    return nets
-
-
-def save_img(images, filenames, output_dir):
+def save_image(images, filenames, output_dir):
     """save high quality jpeg"""
+
+    def mkdir(path):
+        """Check if the folder exists, if it does not exist, create it"""
+        isExists = os.path.exists(path)
+        if not isExists:
+            os.makedirs(path)
+
     mkdir(output_dir)
     for i, filename in enumerate(filenames):
         # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
@@ -143,40 +78,70 @@ def save_img(images, filenames, output_dir):
         img.save(os.path.join(output_dir, filename))
 
 
-def main():
-    transforms = T.Compose([T.ToTensor()])
-    # Load inputs
-    inputs = ImageNet(opt.input_dir, opt.input_csv, transforms)
-    data_loader = DataLoader(inputs, batch_size=opt.batch_size, shuffle=False, pin_memory=True, num_workers=8)
-    input_num = len(inputs)
+def run_attack(
+        method: str,
+        use_Inc_model: bool = False,
+        device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+        save_img: bool = False
+):
+    if use_Inc_model:
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize(299),
+                transforms.CenterCrop(299),
+            ]
+        )
+    else:
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+            ]
+        )
 
-    # Create models
-    models = get_models(list_nets, opt.model_dir)
+    print('Loaded source model...')
+    model = load_model(opt.modeltype)
+    model_name = opt.modeltype
 
-    # Initialization parameters
-    correct_num = {}
-    logits = {}
-    for net in list_nets:
-        correct_num[net] = 0
+    print('Loaded transfer models...')
+    all_model_names = ['resnet50', 'densenet121', 'vgg19', 'inception_v3', 'googlet', 'alexnet', "efficientnet_b4",
+                       'swin_t', 'swin_b', 'swin_s']
+    transfer_model_names = [x for x in all_model_names if x != opt.modeltype]
+    transfer_models = [load_model(x) for x in transfer_model_names]
 
-    # Start iteration
-    for images, filename, label in tqdm(data_loader):
-        label = label.cuda()
-        images = images.cuda()
-        # Start Attack
-        adv_img = attack(models[opt.white_model], images, label)
-        # Save adversarial examples
-        #  save_img(adv_img, filename, opt.output_dir)
-        # Prediction
-        with torch.no_grad():
-            for net in list_nets:
-                logits[net] = models[net](TNormalize(adv_img))
-                correct_num[net] += (torch.argmax(logits[net], axis=1) != label).detach().sum().cpu()
+    success_rate = dict()  # 攻击成功率
+    for name in all_model_names:
+        success_rate[name] = 0
+    print('Loaded dataset...')
+    val_dataset = ImageFolder(root=opt.root, transform=transform)  # root = "mini-imagenet or other"
+    val_loader = DataLoader(val_dataset, batch_size=10, shuffle=False, num_workers=0)
+    print('Image Loaded...')
+    for batch, (images, labels) in enumerate(tqdm(val_loader)):
+        images = images.to(device)
+        labels = labels.to(device)
 
-    # Print attack success rate
-    for net in list_nets:
-        print('{} attack success rate: {:.2%}'.format(net, correct_num[net] / input_num))
+        if method == "test":
+            from RNAA import RNAA
+            attack = RNAA()
+            adv = attack(model, images, labels, "layer2")
+
+        output = model(TNormalize(adv)).max(dim=1)[1]
+        success_rate[model_name] += (output != labels).sum().item()
+
+        for transfer_model_name, transfer_model in zip(transfer_model_names, transfer_models):
+            output = transfer_model(TNormalize(adv)).max(dim=1)[1]
+            success_rate[transfer_model_name] += (output != labels).sum().item()
+
+        # save adv image ?
+        if save_img:
+            filename = [str(batch * len(labels) + _) + ".jpg" for _ in range(len(images))]
+            save_image(images=adv, filenames=filename, output_dir="./adv_img")
+
+    for model_name_ in success_rate.keys():
+        print('Model: %s attack Success Rate:%f' % (model_name_, success_rate[model_name_] / len(val_dataset)))
 
 
 if __name__ == '__main__':
-    main()
+    run_attack(method="test", use_Inc_model=False, save_img=False)

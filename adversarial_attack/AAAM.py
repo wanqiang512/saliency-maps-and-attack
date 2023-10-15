@@ -70,7 +70,7 @@ class AAAM:
         return loss
 
     def calculate_cam(self, model, images, frist, second):
-        from CAM.GradCAMplusplus import GradCamplusplus
+        from saliency_maps.GradCAMplusplus import GradCamplusplus
         cam = GradCamplusplus(model)
         cam1 = cam.get_gradient(images, "layer4", frist)[0]
         cam2 = cam.get_gradient(images, "layer4", second)[0]
