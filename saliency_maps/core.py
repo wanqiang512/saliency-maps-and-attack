@@ -568,10 +568,16 @@ class RISE(nn.Module):
     def save_masks(self, filepath):
         torch.save(self.masks, filepath)
 
-    def forward(self, x):
+    def forward(self, x, idx=None):
         # x: input image. (1, 3, H, W)
+        logits = self.model(x)
+        if idx is None:
+            prob, idx = torch.max(logits, dim=1)
+            idx = idx.item()
+            prob = prob.item()
+            print("predicted class ids {}\t probability {}".format(idx, prob))
+            
         device = x.device
-
         # keep probabilities of each class
         probs = []
         # shape (n_masks, 3, H, W)
@@ -599,7 +605,7 @@ class RISE(nn.Module):
         saliency -= m.view(n_classes, 1, 1)
         M, _ = torch.max(saliency.view(n_classes, -1), dim=1)
         saliency /= M.view(n_classes, 1, 1)
-        return saliency.data
+        return saliency.data[idx]
 
 
 class EigenCAM(CAM):
