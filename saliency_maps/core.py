@@ -67,15 +67,12 @@ class CAM(object):
             print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # cam can be calculated from the weights of linear layer and activations
-        weight_fc = list(
-            self.model._modules.get('fc').parameters())[0].to('cpu').data
-
+        weight_fc = list(self.model._modules.get('fc').parameters())[0].to('cpu').data
         cam = self.getCAM(self.values, weight_fc, idx)
+        return cam
 
-        return cam, idx
-
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
     def getCAM(self, values, weight_fc, idx):
         '''
@@ -119,25 +116,21 @@ class GradCAM(CAM):
         Return:
             heatmap: class activation mappings of the predicted class
         """
-
         # anomaly detection
         score = self.model(x)
-
         prob = F.softmax(score, dim=1)
-
         if idx is None:
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
             print("predicted class ids {}\t probability {}".format(idx, prob))
-
         # caluculate cam of the predicted class
         cam = self.getGradCAM(self.values, score, idx)
 
-        return cam, idx
+        return cam
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
     def getGradCAM(self, values, score, idx):
         '''
@@ -201,10 +194,10 @@ class GradCAMpp(CAM):
         # caluculate cam of the predicted class
         cam = self.getGradCAMpp(self.values, score, idx)
 
-        return cam, idx
+        return cam
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
     def getGradCAMpp(self, values, score, idx):
         '''
@@ -326,13 +319,11 @@ class SmoothGradCAMpp(CAM):
         total_cams /= self.n_samples
         idx = mode(indices)
         prob = mean(probs)
-
         print("predicted class ids {}\t probability {}".format(idx, prob))
-
         return total_cams.data
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
 
 class ScoreCAM(CAM):
@@ -408,11 +399,10 @@ class ScoreCAM(CAM):
             cam = F.relu(cam)
             cam -= torch.min(cam)
             cam /= torch.max(cam)
-
         return cam.data
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
 
 class LayerCAM(CAM):
@@ -420,7 +410,7 @@ class LayerCAM(CAM):
         super().__init__(model, target_Layer)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def forward(self, x, idx=None, ):
+    def forward(self, x, idx=None):
         """
         Args:
                 x: input image. shape =>(1, 3, H, W)
@@ -451,11 +441,11 @@ class LayerCAM(CAM):
             cam = cam - cam.min() / (cam.max() - cam.min())
         return cam.data
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self, x, idx=None):
+        return self.forward(x, idx)
 
 
-class Guided_BackPropagation():
+class Guided_BackPropagation:
     def __init__(self, model):
         super(Guided_BackPropagation, self).__init__()
         self.model = model
@@ -507,10 +497,8 @@ class Guided_BackPropagation():
         #  当反向传播作用于一个向量而不是标量时，需要传入一个与其形状相同的权重向量进行加权求和得到一个标量
         #  在可视化任务中，通常目标张量（标签）是最佳选择
         output.backward(target_tensor)
-
         for handle in self.handlers:
             handle.remove()
-
         self.guided_gradient = self.input_TensorImage.grad.clone()
         self.input_TensorImage.grad.zero_()
         self.guided_gradient.detach()
