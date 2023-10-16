@@ -7,19 +7,18 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 import argparse
-import torch.nn as nn
 from torchvision.models import (
-    resnet18, vgg19, alexnet, densenet121, swin_t, swin_b, swin_s, inception_v3, googlenet,
-    ResNet18_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
-    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights, Inception_V3_Weights, GoogLeNet_Weights
+    resnet50, vgg19, alexnet, densenet121, swin_t, swin_b, swin_s, inception_v3, googlenet, efficientnet_b4,
+    ResNet50_Weights, AlexNet_Weights, Swin_B_Weights, Swin_T_Weights,
+    Swin_S_Weights, DenseNet121_Weights, VGG19_Weights, Inception_V3_Weights, GoogLeNet_Weights, EfficientNet_B4_Weights
 )
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 parser = argparse.ArgumentParser(description="Test.py")
-parser.add_argument('--root', type=str, default=r'D:\code\CAM-attack\dataset\ImageNetval_5000\val5000',
+parser.add_argument('--root', type=str, default=r'D:\PNAA\val5000',
                     help='Input images.')
 parser.add_argument('--save_adv', type=str, default='adv_img/', help='Output directory with adv images.')
-parser.add_argument('--modeltype', type=str, default='resnet18', help='Substitution model.')
+parser.add_argument('--modeltype', type=str, default='resnet50', help='Substitution model.')
 opt = parser.parse_args()
 
 
@@ -36,8 +35,8 @@ def TNormalize(x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.2
 
 
 def load_model(model_name):
-    if model_name == 'resnet18':
-        net = resnet18(weights=ResNet18_Weights.DEFAULT)
+    if model_name == 'resnet50':
+        net = resnet50(weights=ResNet50_Weights.DEFAULT)
     elif model_name == 'densenet121':
         net = densenet121(weights=DenseNet121_Weights.DEFAULT)
     elif model_name == 'vgg19':
@@ -48,18 +47,11 @@ def load_model(model_name):
         net = googlenet(weights=GoogLeNet_Weights.DEFAULT)
     elif model_name == 'alexnet':
         net = alexnet(weights=AlexNet_Weights.DEFAULT)
-    elif model_name == 'swin_t':
-        net = swin_t(weights=Swin_T_Weights.DEFAULT)
-    elif model_name == 'swin_b':
-        net = swin_b(weights=Swin_B_Weights.DEFAULT)
-    elif model_name == 'swin_s':
-        net = swin_s(weights=Swin_S_Weights.DEFAULT)
+    elif model_name == "efficientnet_b4":
+        net = efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)
     else:
         print('Not supported model')
-    net = nn.Sequential(
-        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        net.eval().to(device)
-    )
+    net = net.eval().to(device)
     return net
 
 
@@ -108,10 +100,9 @@ def run_attack(
     model_name = opt.modeltype
 
     print('Loaded transfer models...')
-    all_model_names = ['resnet18', 'densenet121', 'vgg19', 'inception_v3', 'googlet', 'alexnet']
+    all_model_names = ['resnet50', 'densenet121', 'vgg19', 'inception_v3', 'googlet', 'alexnet', "efficientnet_b4"]
     transfer_model_names = [x for x in all_model_names if x != opt.modeltype]
     transfer_models = [load_model(x) for x in transfer_model_names]
-    print(transfer_models)
 
     success_rate = dict()  # 攻击成功率
     for name in all_model_names:
@@ -125,15 +116,14 @@ def run_attack(
         labels = labels.to(device)
 
         if method == "test":
-            from adversarial_attack.IDG import TAIDG
-            attack = TAIDG()
-            adv = attack(model, images, labels)
+            attack = ()
+            adv = attack(model, images, labels, "layer2")
 
-        output = model(adv).max(dim=1)[1]
+        output = model(TNormalize(adv)).max(dim=1)[1]
         success_rate[model_name] += (output != labels).sum().item()
 
         for transfer_model_name, transfer_model in zip(transfer_model_names, transfer_models):
-            output = transfer_model(adv).max(dim=1)[1]
+            output = transfer_model(TNormalize(adv)).max(dim=1)[1]
             success_rate[transfer_model_name] += (output != labels).sum().item()
 
         # save adv image ?
