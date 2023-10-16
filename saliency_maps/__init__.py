@@ -5,6 +5,7 @@
 @time: 2023/10/15 23:22
 """
 from saliency_maps.core import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, LayerCAM, RISE, EigenCAM
+from utils import ShowGrayscaleImage
 
 try:
     from .version import __version__
