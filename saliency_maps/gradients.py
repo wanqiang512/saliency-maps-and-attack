@@ -301,3 +301,7 @@ class SmoothGrad:
                 avg_gradients += x_plus_noise.grad
         avg_gradients = avg_gradients / self.ens
         return avg_gradients
+
+
+class LRP:
+    """pass"""
