@@ -1,7 +1,11 @@
 from typing import Iterable
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models
+from torch.autograd import Variable
 
 
 class GradCam:
@@ -122,7 +126,6 @@ class GradCam:
                     process()
 
         return self.gradients
-
 
 
 class GradCamplusplus:
@@ -249,3 +252,52 @@ class GradCamplusplus:
                     process()
 
         return self.gradients
+
+
+class SmoothGrad:
+    """
+    SmoothGrad
+    example:
+     >>> SG = saliency_maps.SmoothGrad(model, 20, False, 0.2, device)
+     >>> grad = SG(images, labels)
+    """
+
+    def __init__(
+            self,
+            model,
+            ens,
+            magnitude=False,
+            scale=0.2,
+            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+    ):
+        self.device = device
+        self.model = model.eval().to(device)
+        self.ens = ens
+        self.scale = scale
+        self.magnitude = magnitude
+
+    def __call__(self, x, idx=None, *args, **kwargs):
+        score = self.model(x)
+        if idx is None:
+            prob, idx = torch.max(score, dim=1)
+            idx = idx.item()
+            prob = prob.item()
+            print("predicted class ids {}\t probability {}".format(idx, prob))
+        avg_gradients = torch.zeros_like(x)
+        for l in range(self.ens):
+            noise = np.random.normal(0, self.scale, size=x.shape)
+            noise = torch.from_numpy(noise).to(self.device, dtype=torch.float32)
+            x_plus_noise = x + noise
+            x_plus_noise = Variable(x_plus_noise, requires_grad=True)
+            score = self.model(x_plus_noise)
+            score = torch.softmax(score, dim=1)
+            one_hot = F.one_hot(idx, len(score[0])).float()
+            loss = torch.sum(score * one_hot)
+            self.model.zero_grad()
+            loss.backward()
+            if self.magnitude:
+                avg_gradients += x_plus_noise.grad * x_plus_noise.grad
+            else:
+                avg_gradients += x_plus_noise.grad
+        avg_gradients = avg_gradients / self.ens
+        return avg_gradients
