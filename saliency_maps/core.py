@@ -576,7 +576,7 @@ class RISE(nn.Module):
             idx = idx.item()
             prob = prob.item()
             print("predicted class ids {}\t probability {}".format(idx, prob))
-            
+
         device = x.device
         # keep probabilities of each class
         probs = []
@@ -650,3 +650,21 @@ class EigenCAM(CAM):
 
     def __call__(self, x):
         return self.forward(x)
+
+
+class Guided_GradCAM(GradCAM, Guided_BackPropagation):
+    """Guided Grad-CAM pytorch"""
+
+    def __init__(self, model, layer):
+        GradCAM.__init__(model, layer)
+        Guided_BackPropagation.__init__(model)
+
+    def __call__(self, images, labels, *args, **kwargs):
+        if images.size[0] != 1:
+            raise NotImplementedError("Batch processing not supported!")
+        GBP = self.get_gradient(images, labels)
+        GM = self.forward(images, labels)
+        GM = F.interpolate(GM, size=(images.shape[2], images.shape[3]), mode='bilinear', align_corners=False)
+        grad = GBP * GM
+
+        return grad
