@@ -3,6 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 import numpy as np
+import torch
 from matplotlib import cm
 from PIL import Image
 from torch import tensor
@@ -79,7 +80,7 @@ def ShowGrayscaleImage(image_3d, title='', ax=None):
      >>> from saliency_maps import ShowGrayscaleImage
      >>> test = ShowGrayscaleImage(image_3d=..., title= "", ax = ...)
     """
-    if isinstance(image_3d, tensor):
+    if isinstance(image_3d, torch.Tensor):
         image_3d = image_3d.clone().detach().cpu().squeeze().numpy().transpose(1, 2, 0)
 
     im = VisualizeImageGrayscale(image_3d)
