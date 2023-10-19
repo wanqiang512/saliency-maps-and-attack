@@ -304,7 +304,10 @@ class SmoothGrad:
 
 
 class BlurIG:
-    def __init__(self, device=torch.device("cuda:0")):
+    def __init__(
+            self,
+            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ):
         self.device = device
 
     """A CoreSaliency class that implements integrated gradients along blur path.
