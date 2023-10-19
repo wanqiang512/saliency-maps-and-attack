@@ -303,5 +303,69 @@ class SmoothGrad:
         return avg_gradients
 
 
-class LRP:
-    """pass"""
+class BlurIG:
+    def __init__(self, device=torch.device("cuda:0")):
+        self.device = device
+
+    """A CoreSaliency class that implements integrated gradients along blur path.
+
+    https://arxiv.org/abs/2004.03383
+
+    Generates a saliency mask by computing integrated gradients for a given input
+    and prediction label using a path that successively blurs the image.
+    """
+
+    def gaussian_blur(self, image, sigma):
+        """Returns Gaussian blur filtered 3d (WxHxC) image.
+
+        Args:
+          image: 3 dimensional ndarray / input image (W x H x C).
+          sigma: Standard deviation for Gaussian blur kernel.
+        """
+        if isinstance(image, torch.Tensor):
+            image_numpy = image.cpu().detach().squeeze().numpy().transpose(1, 2, 0)
+        if sigma == 0:
+            return image
+        x = ndimage.gaussian_filter(image_numpy, sigma=[sigma, sigma, 0], mode="constant").transpose(2, 0, 1)
+        return torch.from_numpy(x).unsqueeze(0).to(self.device, dtype=torch.float32)
+
+    def __call__(
+            self,
+            model,
+            inputs,
+            labels,
+            max_sigma=50,
+            steps=100,
+            grad_step=0.01,
+            sqrt=False,
+            scale=0.2
+    ):
+
+        if sqrt:
+            sigmas = [math.sqrt(float(i) * max_sigma / float(steps)) for i in range(0, steps + 1)]
+        else:
+            sigmas = [float(i) * max_sigma / float(steps) for i in range(0, steps + 1)]
+
+        step_vector_diff = [sigmas[i + 1] - sigmas[i] for i in range(0, steps)]
+
+        total_gradients = torch.zeros_like(inputs).to(self.device)
+
+        for i in range(steps):
+            noise = np.random.normal(0.0, 0.2, size=inputs.shape)
+            temp = inputs.clone() + torch.from_numpy(noise).to(self.device, dtype=torch.float32)
+            x_step = self.gaussian_blur(temp, sigmas[i])
+            x_step = Variable(x_step, requires_grad=True)
+            gaussian_gradient = (self.gaussian_blur(temp, sigmas[i] + grad_step) - x_step) / grad_step
+            lotigs = model(x_step)
+            lotigs = F.softmax(lotigs, dim=1)
+            one_hot = F.one_hot(labels, len(lotigs[0]))
+            loss = torch.sum(lotigs * one_hot)
+            model.zero_grad()
+            loss.backward()
+            grad = x_step.grad.data
+            tmp = (step_vector_diff[i] * torch.multiply(gaussian_gradient, grad))
+            total_gradients += tmp
+
+        total_gradients *= -1.0
+        return total_gradients
+
