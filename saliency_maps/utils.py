@@ -1,12 +1,17 @@
 # Copyright (C) 2020-2022, François-Guillaume Fernandez.
+from typing import Tuple, List, Optional
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 import numpy as np
 import torch
-from matplotlib import cm
+from matplotlib import cm, pyplot as plt
 from PIL import Image
-from torch import tensor
+import numpy as np
+from matplotlib import pylab as P
+
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 
 def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alpha: float = 0.7) -> Image.Image:
@@ -42,10 +47,6 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alp
     # Overlay the image with the mask
     overlayed_img = Image.fromarray((alpha * np.asarray(img) + (1 - alpha) * overlay).astype(np.uint8))
     return overlayed_img
-
-
-import numpy as np
-from matplotlib import pylab as P
 
 
 def VisualizeImageGrayscale(image_3d, percentile=99):
@@ -90,3 +91,33 @@ def ShowGrayscaleImage(image_3d, title='', ax=None):
     P.imshow(im, cmap=P.cm.gray, vmin=0, vmax=1)
     P.title(title)
     P.show()
+
+
+def ShowColorscaleImage(
+        images: Optional[List[np.numarray, torch.Tensor]],
+        titles: Optional[List[str]],
+        output_path: str = None,
+        save: bool = False
+):
+    """
+    example:
+    >>> from saliency_maps import ShowColorscaleImage
+    >>> ShowColorscaleImage(([images], [title]))
+    """
+    for i in range(len(images)):
+        if isinstance(images[i], torch.Tensor):
+            images[i] = images[i].clone().detach().cpu().squeeze().numpy().transpose(1, 2, 0)
+            images[i] = np.fabs(images[i]) / np.max(images[i])
+    fig, axs = plt.subplots(1, len(images))
+    fig.set_figheight(10)
+    fig.set_figwidth(16)
+
+    for i, (title, img) in enumerate(zip(titles, images)):
+        plt.imshow(img)
+        plt.title(title)
+        plt.axis("off")
+    plt.show()
+    fig.tight_layout()
+
+    if save is True:
+        plt.savefig(output_path)
