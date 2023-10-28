@@ -4,13 +4,12 @@ from scipy import stats as st
 import numpy as np
 
 
-# DI
-def input_diversity(x, resize_rate=0.9, diversity_prob=0.7):
+"""Input diversity: https://arxiv.org/abs/1803.06978"""
+def DI(x, resize_rate=1.15, diversity_prob=0.5):
+    assert resize_rate >= 1.0
+    assert diversity_prob >= 0.0 and diversity_prob <= 1.0
     img_size = x.shape[-1]
     img_resize = int(img_size * resize_rate)
-    if resize_rate < 1:
-        img_size = img_resize
-        img_resize = x.shape[-1]
     rnd = torch.randint(low=img_size, high=img_resize, size=(1,), dtype=torch.int32)
     rescaled = F.interpolate(x, size=[rnd, rnd], mode='bilinear', align_corners=False)
     h_rem = img_resize - rnd
@@ -20,8 +19,8 @@ def input_diversity(x, resize_rate=0.9, diversity_prob=0.7):
     pad_left = torch.randint(low=0, high=w_rem.item(), size=(1,), dtype=torch.int32)
     pad_right = w_rem - pad_left
     padded = F.pad(rescaled, [pad_left.item(), pad_right.item(), pad_top.item(), pad_bottom.item()], value=0)
-    return padded if torch.rand(1) < diversity_prob else x
-
+    ret = padded if torch.rand(1) < diversity_prob else x
+    return ret
 
 # TI
 def gkern(kernlen=15, nsig=3):
