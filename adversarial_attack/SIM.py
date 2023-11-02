@@ -21,7 +21,7 @@ class SIM:
         - labels: :math:`(N)` where each value :math:`y_i` is :math:`0 \leq y_i \leq` `number of labels`.
         - output: :math:`(N, C, H, W)`.
     Examples::
-        >>> attack = SINIFGSM(model, eps=8/255, alpha=2/255, steps=10, decay=1.0, m=5)
+        >>> attack = SINIFGSM(model, eps= 16 /255, alpha= 1.6 /255, steps=10, decay=1.0, m=5)
         >>> adv_images = attack(images, labels)
 
     """
@@ -42,7 +42,7 @@ class SIM:
         self.m = m
         self.model = model
 
-    def TNormalize(self, x, IsRe=False, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    def TNormalize(self, x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
         if not IsRe:
             x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
@@ -53,7 +53,7 @@ class SIM:
                 x[:, index, :, :] += j
         return x
 
-    def forward(self, images, labels):
+    def __call__(self, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         momentum = torch.zeros_like(images).detach().to(self.device)
