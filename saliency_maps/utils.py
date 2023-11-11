@@ -1,6 +1,7 @@
 # Copyright (C) 2020-2022, François-Guillaume Fernandez.
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Union
 
+import numpy
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 import numpy as np
@@ -94,8 +95,8 @@ def ShowGrayscaleImage(image_3d, title='', ax=None):
 
 
 def ShowColorscaleImage(
-        images: Optional[List[np.numarray, torch.Tensor]],
-        titles: Optional[List[str]],
+        images: List[Union[numpy.ndarray, torch.Tensor]],
+        titles: List[str],
         output_path: str = None,
         save: bool = False
 ):
@@ -114,7 +115,7 @@ def ShowColorscaleImage(
 
     for i, (title, img) in enumerate(zip(titles, images)):
         plt.imshow(img)
-        plt.title(title)
+        plt.title(title, fontsize='large')
         plt.axis("off")
     plt.show()
     fig.tight_layout()
