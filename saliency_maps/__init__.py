@@ -6,7 +6,7 @@
 """
 from saliency_maps.core import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, LayerCAM, RISE, EigenCAM, \
     Guided_GradCAM
-from utils import ShowGrayscaleImage
+from utils import ShowGrayscaleImage, ShowColorscaleImage
 from gradients import SmoothGrad
 
 try:
