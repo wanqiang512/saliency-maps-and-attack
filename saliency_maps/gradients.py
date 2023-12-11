@@ -380,7 +380,7 @@ class NoiseGrad_PlusPlus:
             model,
             weights,
             mean: float = 1.0,
-            std: float = 0.2,
+            std: float = 0.05,
             sg_mean: float = 0.0,
             sg_std: float = 0.2,
             n: int = 20,
@@ -452,6 +452,6 @@ class NoiseGrad_PlusPlus:
             loss = torch.sum(score * one_hot)
             grad = torch.autograd.grad(loss, inputs_noise, create_graph=False, retain_graph=False)[0]
             avg_gradients += grad
-            avg_gradients = avg_gradients / self.n
+        avg_gradients = avg_gradients / self.n
         return avg_gradients
 
