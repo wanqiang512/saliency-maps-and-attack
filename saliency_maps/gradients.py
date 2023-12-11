@@ -372,3 +372,86 @@ class BlurIG:
         total_gradients *= -1.0
         return total_gradients
 
+
+
+class NoiseGrad_PlusPlus:
+    def __init__(
+            self,
+            model,
+            weights,
+            mean: float = 1.0,
+            std: float = 0.2,
+            sg_mean: float = 0.0,
+            sg_std: float = 0.2,
+            n: int = 20,
+            noise_type: str = "multiplicative",
+            verbose: bool = True,
+    ):
+        """
+        Initialize the explanation-enhancing method: NoiseGrad.
+        Paper:
+
+        Args:
+            model (torch model): a trained model
+            weights (dict):
+            mean (float): mean of the distribution (often referred to as mu)
+            std (float): standard deviation of the distribution (often referred to as sigma)
+            n (int): number of Monte Carlo rounds to sample models
+            noise_type (str): the type of noise to add to the model parameters, either additive or multiplicative
+            verbose (bool): print the progress of explanation enchancement (default True)
+        """
+
+        self.std = std
+        self.mean = mean
+        self.model = model
+        self.n = n
+        self.weights = weights
+        self.noise_type = noise_type
+        self.verbose = verbose
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.distribution = torch.distributions.normal.Normal(
+            loc=self.mean, scale=self.std
+        )
+        self.sg_std = sg_std
+        self.sg_mean = sg_mean
+        print("NoiseGrad++ initialized.")
+
+    def sample(self):
+        self.model.load_state_dict(self.weights)
+        # If std is not zero, loop over each layer and add Gaussian noise.
+        if not self.std == 0.0:
+            with torch.no_grad():
+                for layer in self.model.parameters():
+                    if self.noise_type == "additive":
+                        layer.add_(
+                            self.distribution.sample(layer.size()).to(layer.device)
+                        )
+                    elif self.noise_type == "multiplicative":
+                        layer.mul_(
+                            self.distribution.sample(layer.size()).to(layer.device)
+                        )
+                    else:
+                        print(
+                            "Set NoiseGrad attribute 'noise_type' to either 'additive' or 'multiplicative' (str)."
+                        )
+
+    def __call__(self, inputs: Optional[torch.tensor], targets: Optional[torch.tensor], **kwargs):
+        inputs = inputs.clone().detach().to(self.device)
+        targets = targets.clone().detach().to(self.device)
+        avg_gradients = torch.zeros_like(inputs).to(self.device)
+        for i in (tqdm(range(self.n)) if self.verbose else range(self.n)):  # create a series of models
+            self.sample()
+            self.model.to(self.device)
+            noise = np.random.normal(self.sg_mean, self.sg_std, size=inputs.shape)
+            noise = torch.from_numpy(noise).to(self.device, dtype=torch.float32)
+            inputs_noise = inputs + noise
+            inputs_noise = Variable(inputs_noise, requires_grad=True)
+            logits = self.model(inputs_noise)
+            score = F.softmax(logits, dim=1)
+            one_hot = F.one_hot(targets, len(score[0])).float()
+            loss = torch.sum(score * one_hot)
+            grad = torch.autograd.grad(loss, inputs_noise, create_graph=False, retain_graph=False)[0]
+            avg_gradients += grad
+            avg_gradients = avg_gradients / self.n
+        return avg_gradients
+
