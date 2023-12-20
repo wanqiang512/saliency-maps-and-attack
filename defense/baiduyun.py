@@ -1,9 +1,9 @@
 # from aip import AipImageClassify
 #
 # """ 你的 APPID AK SK """
-# APP_ID = '45299065'
-# API_KEY = 'pHjwWR9Np116sYL7HVqea9sP'
-# SECRET_KEY = '9hst8AGtxdp8afnN1rSUYRb1CqHwKWRI'
+# APP_ID = ''
+# API_KEY = ''
+# SECRET_KEY = ''
 #
 # client = AipImageClassify(APP_ID, API_KEY, SECRET_KEY)
 #
