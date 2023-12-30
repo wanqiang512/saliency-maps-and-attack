@@ -15,7 +15,7 @@ opt.add_argument("--batch_size", type=List[int], default=[100, 299, 299, 3])
 opt.add_argument("--label_file", type=str, default='D:\dataset\imagenet val_1000\\val_rs.csv')
 FLAGS = opt.parse_args()
 
-
+### 注意加载的图像的范围是[0,1]，没有做标准化
 def load_images(input_dir, batch_shape):
     f2l = load_labels(FLAGS.label_file)
     """Read png images from input directory in batches.
@@ -40,7 +40,7 @@ def load_images(input_dir, batch_shape):
             image = imread(f, pilmode='RGB').astype(float) / 255.0
         # Images for inception classifier are normalized to be in [-1, 1] interval.
         # images[idx, :, :, :] = image * 2.0 - 1.0
-        images[idx, :, :, :] = image * 2.0 - 1.0
+        images[idx, :, :, :] = image 
         filenames.append(os.path.basename(filepath))
         idx += 1
         labels.append(f2l[os.path.basename(filepath)])
