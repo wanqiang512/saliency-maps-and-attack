@@ -5,7 +5,7 @@ import numpy as np
 
 
 """Input diversity: https://arxiv.org/abs/1803.06978"""
-def DI(x, resize_rate=1.15, diversity_prob=0.5):
+def DI(x, resize_rate=1.15, diversity_prob=0.7):
     assert resize_rate >= 1.0
     assert diversity_prob >= 0.0 and diversity_prob <= 1.0
     img_size = x.shape[-1]
