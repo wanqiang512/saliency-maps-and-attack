@@ -3,10 +3,9 @@ import torch.nn as nn
 from torchvision.transforms import Normalize
 
 
-class MIM:
+class mifgsm:
     def __init__(
             self,
-            model,
             device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
             eps=16 / 255,
             alpha=1.6 / 255,
@@ -17,10 +16,9 @@ class MIM:
         self.steps = steps
         self.u = u  # u
         self.alpha = alpha
-        self.model = model
         self.device = device
 
-    def TNormalize(self, x, IsRe, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    def TNormalize(self, x, IsRe=False, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
         if not IsRe:
             x = Normalize(mean=mean, std=std)(x)
         elif IsRe:
@@ -31,7 +29,7 @@ class MIM:
                 x[:, index, :, :] += j
         return x
 
-    def __call__(self, images, labels):
+    def __call__(self, model, images, labels):
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
         adv_images = images.clone().detach()
@@ -40,7 +38,7 @@ class MIM:
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
-            outputs = self.model(self.TNormalize(adv_images))
+            outputs = model(self.TNormalize(adv_images))
             cost = loss(outputs, labels)
             # Update adversarial images
             grad = torch.autograd.grad(cost, adv_images,
