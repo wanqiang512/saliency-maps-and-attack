@@ -55,7 +55,7 @@ def load_images(input_dir, batch_shape):
             labels = []
             idx = 0
     if idx > 0:
-        yield filenames, imgs, labs 
+        yield filenames, imgs, labs
 
 
 def check_or_create_dir(directory):
