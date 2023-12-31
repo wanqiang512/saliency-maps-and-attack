@@ -44,29 +44,29 @@ def get_model(net_name, model_dir):
                                     pretrainedmodels.inceptionresnetv2(num_classes=1000,
                                                                        pretrained='imagenet').eval().cuda())
     elif net_name == 'tf2torch_adv_inception_v3':
-        from torch_nets import tf_adv_inception_v3
-        net = tf_adv_inception_v3
+        from torch_nets import tf2torch_adv_inception_v3
+        net = tf2torch_adv_inception_v3
         model = nn.Sequential(
             # Images for inception classifier are normalized to be in [-1, 1] interval.
             TfNormalize('tensorflow'),
             net.KitModel(model_path).eval().cuda(), )
     elif net_name == 'tf2torch_ens3_adv_inc_v3':
-        from torch_nets import tf_ens3_adv_inc_v3
-        net = tf_ens3_adv_inc_v3
+        from torch_nets import tf2torch_ens3_adv_inc_v3
+        net = tf2torch_ens3_adv_inc_v3
         model = nn.Sequential(
             # Images for inception classifier are normalized to be in [-1, 1] interval.
             TfNormalize('tensorflow'),
             net.KitModel(model_path).eval().cuda(), )
     elif net_name == 'tf2torch_ens4_adv_inc_v3':
-        from torch_nets import tf_ens4_adv_inc_v3
-        net = tf_ens4_adv_inc_v3
+        from torch_nets import tf2torch_ens4_adv_inc_v3
+        net = tf2torch_ens4_adv_inc_v3
         model = nn.Sequential(
             # Images for inception classifier are normalized to be in [-1, 1] interval.
             TfNormalize('tensorflow'),
             net.KitModel(model_path).eval().cuda(), )
     elif net_name == 'tf2torch_ens_adv_inc_res_v2':
-        from torch_nets import tf_ens_adv_inc_res_v2
-        net = tf_ens_adv_inc_res_v2
+        from torch_nets import tf2torch_ens_adv_inc_res_v2
+        net = tf2torch_ens_adv_inc_res_v2
         model = nn.Sequential(
             # Images for inception classifier are normalized to be in [-1, 1] interval.
             TfNormalize('tensorflow'),
