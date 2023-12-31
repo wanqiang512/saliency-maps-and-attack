@@ -114,7 +114,7 @@ def load_images(input_dir, batch_shape):
             labels = []
             idx = 0
     if idx > 0:
-        yield filenames, images, labs
+        yield filenames, imgs, labs
 
 
 def load_labels(file_name):
