@@ -9,8 +9,9 @@ from tqdm import tqdm
 import argparse
 
 opt = argparse.ArgumentParser()
+opt.add_argument('--attack_name', type=str, default='mifgsm')
 opt.add_argument('--input_dir', type=str, default='../dataset/imagenet val_1000/val_rs')
-opt.add_argument('--output_dir', type=str, default='./checkpoints/outputs/')
+opt.add_argument('--output_dir', type=str, default='./checkpoints/ceshi/')
 opt.add_argument("--batch_size", type=int, default=20, help="How many images process at one time.")
 opt.add_argument("--label_file", type=str, default='../dataset/imagenet val_1000/val_rs.csv')
 opt.add_argument("--image_width", type=int, default=299, help="Width of each input images.")
@@ -93,15 +94,15 @@ def load_labels(file_name):
 if __name__ == '__main__':
     total_batches = len(glob.glob(os.path.join(FLAGS.input_dir, '*'))) // FLAGS.batch_size
     model = pretrainedmodels.inceptionresnetv2(num_classes=1000, pretrained='imagenet').eval().cuda()
-    from EM.mifgsm import mifgsm
+    from EM.ceshi import mifgsm
 
-    attack = mifgsm()
+    attack = mifgsm(model)
     for filenames, images, labels in tqdm(
             load_images(FLAGS.input_dir, [FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 3]),
-            desc="Load images...", total=total_batches
+            desc=f"Load images... attack... {FLAGS.attack_name} ...", total=total_batches
     ):
         images = images.cuda()
         labels = labels.cuda()
-        adv = attack(model, images, labels)
+        adv = attack(images, labels)
         # save_images(adv_images, filenames, FLAGS.output_dir
         save_images(adv, filenames, FLAGS.output_dir)
