@@ -25,8 +25,7 @@ parser.add_argument('--input_csv', type=str, default=r'.\dataset\images.csv',
                     help='Input directory with images.')
 parser.add_argument('--input_dir', type=str, default=r'.\dataset\images',
                     help='Input directory with images.')
-parser.add_argument('--adv_dir', type=str, default="./adv_img",
-                    help='Output directory with adversarial images.')
+parser.add_argument('--adv_dir', type=str, default='./adv_img', help='Output directory with adversarial images.')
 batch_size = 10
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -72,6 +71,7 @@ def get_model(net_name, model_dir):
 
 def verify(model_name, path):
     model = get_model(model_name, path)
+    print(model)
     X = ImageNet(opt.adv_dir, opt.input_csv, T.Compose([T.ToTensor()]))
     data_loader = DataLoader(X, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=8)
     sum = 0
