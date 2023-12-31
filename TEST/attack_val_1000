@@ -9,11 +9,14 @@ from tqdm import tqdm
 import argparse
 
 opt = argparse.ArgumentParser()
-opt.add_argument('--input_dir', type=str, default='D:\dataset\imagenet val_1000\\val_rs')
-opt.add_argument('--output_dir', type=str, default='./test/')
-opt.add_argument("--batch_size", type=List[int], default=[100, 299, 299, 3])
-opt.add_argument("--label_file", type=str, default='D:\dataset\imagenet val_1000\\val_rs.csv')
+opt.add_argument('--input_dir', type=str, default='./dataset/imagenet val_1000/val_rs')
+opt.add_argument('--output_dir', type=str, default='./checkpoints/')
+opt.add_argument("--batch_size", type=int, default=20, help="How many images process at one time.")
+opt.add_argument("--label_file", type=str, default='./dataset/imagenet val_1000/val_rs.csv')
+opt.add_argument("--image_width", type=int, default=299, help="Width of each input images.")
+opt.add_argument("--image_height", type=int, default=299, help="Height of each input images.")
 FLAGS = opt.parse_args()
+
 
 ### 注意加载的图像的范围是[0,1]，没有做标准化
 def load_images(input_dir, batch_shape):
@@ -40,7 +43,7 @@ def load_images(input_dir, batch_shape):
             image = imread(f, pilmode='RGB').astype(float) / 255.0
         # Images for inception classifier are normalized to be in [-1, 1] interval.
         # images[idx, :, :, :] = image * 2.0 - 1.0
-        images[idx, :, :, :] = image 
+        images[idx, :, :, :] = image
         filenames.append(os.path.basename(filepath))
         idx += 1
         labels.append(f2l[os.path.basename(filepath)])
@@ -89,15 +92,15 @@ def load_labels(file_name):
 
 
 if __name__ == '__main__':
-    models = pretrainedmodels.inceptionresnetv2(num_classes=1000, pretrained='imagenet').eval().cuda()
-    success = 0
-    for filenames, images, labels in tqdm(load_images(FLAGS.input_dir, FLAGS.batch_size)):
+    model = pretrainedmodels.inceptionresnetv2(num_classes=1000, pretrained='imagenet').eval().cuda()
+    from EM.mifgsm import mifgsm
+
+    attack = mifgsm()
+    for filenames, images, labels in (
+            load_images(FLAGS.input_dir, [FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 3])
+    ):
         images = images.cuda()
         labels = labels.cuda()
-        pred = models(images)
-        pred = pred.argmax(dim=1)
-        success += (pred == labels).sum().item()
+        adv = attack(model, images, labels)
         # save_images(adv_images, filenames, FLAGS.output_dir
-        save_images(images, filenames, FLAGS.output_dir)
-
-    print(f"{success / 1000:.2%}")
+        save_images(adv, filenames, FLAGS.output_dir)
