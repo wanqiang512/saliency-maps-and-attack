@@ -14,7 +14,7 @@ opt = argparse.ArgumentParser()
 opt.add_argument("--image_width", type=int, default=299, help="Width of each input images.")
 opt.add_argument("--image_height", type=int, default=299, help="Height of each input images.")
 opt.add_argument("--batch_size", type=int, default=20, help="How many images process at one time.")
-opt.add_argument('--adv_dir', type=str, default='./checkpoint/outputs/')
+opt.add_argument('--adv_dir', type=str, default='./checkpoints/outputs/')
 opt.add_argument("--label_file", type=str, default='../dataset/imagenet val_1000/val_rs.csv')
 FLAGS = opt.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -151,6 +151,7 @@ def verify_ensmodels(model_name, path):
     ):
         images = images.cuda()
         labels = labels.cuda()
+        print(images, labels)
         with torch.no_grad():
             sum += (model(images).argmax(1) != (labels + 1)).detach().sum().cpu()
     print("Attack Success Rate for {0} : {1:.1f}%".format(model_name, sum / 1000. * 100))
