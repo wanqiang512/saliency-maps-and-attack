@@ -99,7 +99,7 @@ if __name__ == '__main__':
     attack = mifgsm(model)
     for filenames, images, labels in tqdm(
             load_images(FLAGS.input_dir, [FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 3]),
-            desc=f"Load images... attack... {FLAGS.attack_name} ...", total=total_batches
+            desc=f"Load images... attack {FLAGS.attack_name} ...", total=total_batches
     ):
         images = images.cuda()
         labels = labels.cuda()
